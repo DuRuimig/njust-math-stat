@@ -1,0 +1,42 @@
+{
+  "pages": [
+    "pages/catalog/index",
+    "pages/course-detail/index",
+    "pages/teaching/index",
+    "pages/ai/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#F3F6FB",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "南理数统",
+    "backgroundColor": "#F3F6FB",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#7E899D",
+    "selectedColor": "#4056C8",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/catalog/index",
+        "text": "课程目录"
+      },
+      {
+        "pagePath": "pages/teaching/index",
+        "text": "教师"
+      },
+      {
+        "pagePath": "pages/ai/index",
+        "text": "问答"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

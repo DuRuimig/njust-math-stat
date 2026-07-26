@@ -1,0 +1,409 @@
+{
+  "schemaVersion": 1,
+  "verifiedOn": "2026-07-25",
+  "scope": {
+    "courseData": "prototype/data.js 中的开课记录教师",
+    "academyDirectory": "仅使用数学与统计学院师资名录页面中可见的姓名、系别和目录链接",
+    "graduateDirectory": "仅使用研究生院导师目录的 0701 数学行；该字段仅表示研究生导师资格目录，不能推断本科授课、职称或学院在岗状态",
+    "excluded": "不访问学院个人主页、教师个人页或其他外部页面"
+  },
+  "sources": {
+    "academyStaffDirectory": "https://math.njust.edu.cn/15518/list.htm",
+    "graduateTutorDirectory": "https://gsmis.njust.edu.cn/open/DsDir_View.aspx?yxsh=130"
+  },
+  "fieldLimits": {
+    "publicTitle": "目录页面未提供，统一留空",
+    "researchDirections": "目录页面未提供，统一留空",
+    "academyDirectoryLink": "仅为师资名录页面给出的目录链接；未进入链接页面核验内容",
+    "graduateAdvisor0701": "not_listed_in_0701_row 仅表示未出现在该目录行，不能推出不是导师"
+  },
+  "summary": {
+    "allUniqueOfferingTeachers": 61,
+    "mathStatOfferingTeachers": 43,
+    "academyDirectoryListed": 40,
+    "academyDirectoryPersonalLinks": 39,
+    "academyDirectoryListingPageLinks": 1,
+    "academyDirectoryNotListed": 3,
+    "externalOfferingTeachersExcluded": 18,
+    "graduate0701DoctoralAdvisors": 14,
+    "graduate0701MastersAdvisors": 17,
+    "graduate0701NotListed": 12
+  },
+  "teachers": [
+    {
+      "name": "薄乐阳",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/bly/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "成灵妍",
+      "department": "概率统计系",
+      "academyDirectoryLink": null,
+      "academyDirectoryLinkStatus": "directory_link_points_to_staff_listing",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=95fdAAxDAHsCf3kxSO5Msw==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "翟明清",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/zmq/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=ZJaOuredqW4gmap7Zic19g==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "丁利",
+      "department": null,
+      "academyDirectoryLink": null,
+      "academyDirectoryLinkStatus": "not_listed_in_current_staff_directory",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "窦本年",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/dbn/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "杜冬",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/dd/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=UlocLlW0CJpDOoijdPx-vg==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "范金华",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/fjh/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=Xp7mWUaGZX8aCXh-stIO9Q==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "房路路",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/fll/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=7SIBj4TbakcGq4pl!Vf8-A==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "冯敏",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/fm/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "侯传志",
+      "department": "概率统计系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/hcz/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "胡智",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/hz/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=oUkSOAPd6R8K!kMPPnFm5Q==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "金亮",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/jl_17485/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=bkhpSGc7KwjeWlhMp0O7iQ==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "李建军",
+      "department": "概率统计系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/ljj/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=u9MDPOV-mI3xphVw9oZI2Q==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "李宛珊",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/lws/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=tN1nEGN9NrHfxlXfLwzq2g==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "梁永顺",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/lys/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=gVT1q-JlTXCAUoz9RWysZg==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "刘东生",
+      "department": null,
+      "academyDirectoryLink": null,
+      "academyDirectoryLinkStatus": "not_listed_in_current_staff_directory",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "刘芳",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/lf/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=V!B2iK0AtoKSpySBOX4YVQ==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "刘红毅",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/lhy/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=UtqNoylq6V6PtS9Tn6Vhyg==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "刘佳伟",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/ljw/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=9vLsaR0k3uiJusYGqDQUOA==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "刘璐璐",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/lll/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=Bl814H4unmrn5sexcEPlrw==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "陆宇修",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/lyx/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "陆中胜",
+      "department": "概率统计系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/lzs/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "吕新民",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/lxm/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "吕艳",
+      "department": "概率统计系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/ly/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=RjStlWvfEDlELqqaUdQXXQ==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "沈正晗",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/szh1/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=NPHHSpA32ypcPxuXZA6rsg==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "谭康海",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/tkh/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=V!iH!RloTMKiOujq6UlBIA==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "王婧",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/wj_17488/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=PjxU!Oz797NAgWZ8v5RkGg==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "王靓",
+      "department": "概率统计系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/wj/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=iqfgxrbm56qeXJ-kP9F-fA==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "王凯",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/wk/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=mMSKkdoVbL-i0njCJIfpYw==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "吴梦",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/wm/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=uhb6MQidtDCnaBp8cKS4OQ==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "谢建春",
+      "department": "概率统计系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/xjc/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "徐磊",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/xl/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=iI8tAwlDKnuKyR!hOJeGZg==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "许孟",
+      "department": "大学数学基础教学中心",
+      "academyDirectoryLink": "http://math.njust.edu.cn/xm/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=m8pP0LWlnG3RBdvQVWhckw==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "严涛",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/yt/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=AYfIK2xqWv!FZarsklSYZA==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "姚洪亮",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/yhl/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=UlrpISsb3!5XuEh-sXj4Yg==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "袁亮亮",
+      "department": null,
+      "academyDirectoryLink": null,
+      "academyDirectoryLinkStatus": "not_listed_in_current_staff_directory",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "张希",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/zx/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=WmL6ThkYRzeE5ymiVEWb4g==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "赵慧秀",
+      "department": "概率统计系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/zhx/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "硕士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=OwpzM7ELx!6nRbXLClvW3g==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "赵培标",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/zpb/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=JUJAX0NX6P7xTWgTBDfyfg==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "周盾",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/zd/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=1!XFjBPH8eK13jvdMyd48g==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "周旋旋",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/zxx/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "not_listed_in_0701_row",
+      "graduateTutorDirectoryUrl": null
+    },
+    {
+      "name": "朱茂春",
+      "department": "数学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/zmc/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=KujwhTZTXzmAas-tFmG85w==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    },
+    {
+      "name": "朱元国",
+      "department": "计算科学系",
+      "academyDirectoryLink": "http://math.njust.edu.cn/zyg/list.htm",
+      "academyDirectoryLinkStatus": "personal_directory_link",
+      "graduateAdvisor0701": "博士生导师",
+      "graduateTutorDirectoryUrl": "https://gsmis.njust.edu.cn/open/TutorInfo.aspx?dsbh=JVam4pP26E!RlOCxUs57TA==&yxsh=zQt1Wl3TClE=&zydm=Mlm5xNQTyuc="
+    }
+  ],
+  "academyDirectoryMissing": [
+    "丁利",
+    "刘东生",
+    "袁亮亮"
+  ],
+  "academyDirectoryAmbiguous": [
+    {
+      "name": "成灵妍",
+      "reason": "师资名录中可见于概率统计系，但目录链接回到师资名录页本身，未将其当作个人主页。"
+    }
+  ],
+  "externalOfferingTeachersExcluded": [
+    { "name": "蔡云飞", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "陈海博", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "陈芝菲", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "杜晓宇", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "凤琼", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "高凤娟", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "李翔宇", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "钱建军", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "孙廷凯", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "孙叶飞", "offeringUnit": "经济管理学院" },
+    { "name": "王文亭", "offeringUnit": "经济管理学院" },
+    { "name": "邢路", "offeringUnit": "经济管理学院" },
+    { "name": "徐萌萌", "offeringUnit": "经济管理学院" },
+    { "name": "徐生钰", "offeringUnit": "经济管理学院" },
+    { "name": "徐洋", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "杨杨", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "俞研", "offeringUnit": "计算机科学与工程学院" },
+    { "name": "张琨", "offeringUnit": "计算机科学与工程学院" }
+  ]
+}

@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.DS_Store
+**/.DS_Store
+__pycache__/
+**/__pycache__/
+*.py[cod]
+node_modules/
+logs/
+database/runtime/*.sqlite
+database/runtime/*.sqlite-*
+project/backend/coverage/
+project.private.config.json
+miniprogram/assets/images/admin-wechat-qr.jpg

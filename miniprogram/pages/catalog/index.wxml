@@ -1,0 +1,65 @@
+<view class="page-shell catalog-page">
+  <view class="catalog-header">
+    <text class="eyebrow">NJUST · MATH &amp; STATISTICS</text>
+    <text class="page-title">课程目录</text>
+    <view class="search-box">
+      <text class="search-symbol"></text>
+      <input value="{{query}}" placeholder="搜索课程名称或课程代码" placeholder-class="search-placeholder" bindinput="onQueryInput" />
+    </view>
+  </view>
+
+  <view class="announcement" aria-role="region" aria-label="页面公告">
+    <text class="announcement-label">公告</text>
+    <view class="announcement-content">
+      <text class="announcement-title">课程定义与开课安排分开维护</text>
+      <text class="announcement-copy">{{metaNote}}</text>
+    </view>
+  </view>
+
+  <view class="filter-panel surface">
+    <view class="filter-panel-head"><text>筛选课程</text></view>
+    <view class="picker-field">
+      <text class="picker-label">专业</text>
+      <picker range="{{majorOptions}}" bindchange="onPickMajor">
+        <view class="picker-value">{{selectedMajor}}<text>⌄</text></view>
+      </picker>
+    </view>
+    <view class="picker-field">
+      <text class="picker-label">修读阶段</text>
+      <picker range="{{studyStageOptions}}" bindchange="onPickStudyStage">
+        <view class="picker-value">{{selectedStudyStage}}<text>⌄</text></view>
+      </picker>
+    </view>
+    <view class="filter-footer">
+      <button class="text-button" bindtap="clearFilters">清空筛选</button>
+    </view>
+  </view>
+
+  <view class="section-head">
+    <text class="section-title">课程清单</text>
+    <text class="section-hint">点击查看定义与安排</text>
+  </view>
+
+  <view wx:if="{{courseCount}}" class="course-list">
+    <button wx:for="{{courses}}" wx:key="key" class="course-card surface" data-key="{{item.key}}" bindtap="goCourse">
+      <view class="course-main">
+        <view class="course-name-line">
+          <text class="course-name">{{item.name}}</text>
+           <text class="course-code">{{item.codeLabel}}</text>
+        </view>
+         <text class="course-major">{{item.displayMajorLabel}}</text>
+        <view class="tag-row">
+          <text class="tag tag-indigo">{{item.requirementLabel}}</text>
+          <text class="tag">{{item.creditsLabel}} 学分</text>
+          <text class="tag tag-stage">{{item.studyStageLabelDisplay}}</text>
+        </view>
+      </view>
+      <text class="card-arrow">›</text>
+    </button>
+  </view>
+
+  <view wx:else class="surface empty-state">
+    <text class="empty-title">没有找到符合条件的课程</text>
+    <text class="empty-copy">可清空筛选，或等待课程清单同步后再次查看。</text>
+  </view>
+</view>

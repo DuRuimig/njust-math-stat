@@ -1,0 +1,27 @@
+<view class="page-shell teaching-page">
+  <text class="page-title">教师目录</text>
+
+  <view class="search-box">
+    <text class="search-symbol"></text>
+    <input value="{{query}}" placeholder="搜索教师姓名或系别" placeholder-class="search-placeholder" bindinput="onQueryInput" />
+  </view>
+
+  <view wx:if="{{feedbackStatus}}" class="feedback-status" role="alert"><text>{{feedbackStatus}}</text></view>
+
+  <view wx:if="{{teacherCount}}" class="teacher-list">
+    <view wx:for="{{teachers}}" wx:key="id" class="teacher-card surface">
+      <view class="teacher-copy">
+        <text class="teacher-name">{{item.name}}</text>
+        <text class="meta-line">{{item.department}}</text>
+      </view>
+      <button class="like-control {{item.hasLiked ? 'liked' : ''}}" data-id="{{item.id}}" bindtap="likeTeacher" loading="{{item.isLiking}}" disabled="{{item.isLiking}}" aria-label="{{item.hasLiked ? '取消点赞，点赞数 ' + item.likeCount : '点赞，点赞数 ' + item.likeCount}}">
+        <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{item.hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!item.hasLiked}}" class="like-heart-cutout"></view></view></view>
+        <text class="like-count">{{item.likeCount}}</text>
+      </button>
+    </view>
+  </view>
+  <view wx:else class="surface empty-state short-empty">
+    <text class="empty-title">暂无匹配教师</text>
+    <text class="empty-copy">请调整姓名或系别搜索条件。</text>
+  </view>
+</view>

@@ -1,0 +1,66 @@
+<view class="page-shell detail-page">
+  <view wx:if="{{course}}">
+    <view class="course-heading">
+      <text class="page-title">{{course.name}}</text>
+      <button class="like-control {{hasLiked ? 'liked' : ''}}" bindtap="likeCourse" loading="{{isLiking}}" disabled="{{isLiking}}" aria-label="{{hasLiked ? '取消点赞，点赞数 ' + likeCount : '点赞，点赞数 ' + likeCount}}">
+        <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!hasLiked}}" class="like-heart-cutout"></view></view></view>
+        <text class="like-count">{{likeCount}}</text>
+      </button>
+    </view>
+    <text class="page-lead">{{course.displayMajorLabel}}</text>
+
+    <view class="section-head"><text class="section-title">课程基本信息</text></view>
+    <view class="course-info-card surface">
+      <view class="course-info-grid">
+        <view class="course-info-cell"><text class="course-info-label">课程代码</text><text class="course-info-value">{{course.codeLabel}}</text></view>
+        <view class="course-info-cell"><text class="course-info-label">课程性质</text><text class="course-info-value">{{course.requirementLabel}}</text></view>
+        <view class="course-info-cell"><text class="course-info-label">学分</text><text class="course-info-value">{{course.creditsLabel}}</text></view>
+        <view class="course-info-cell"><text class="course-info-label">学时</text><text class="course-info-value">{{course.hoursLabel}}</text></view>
+        <view class="course-info-cell"><text class="course-info-label">专业分类</text><text class="course-info-value">{{course.categoryLabel}}</text></view>
+        <view class="course-info-cell"><text class="course-info-label">修读阶段</text><text class="course-info-value">{{course.studyStageLabelDisplay}}</text></view>
+        <view class="course-info-cell course-info-cell-wide"><text class="course-info-label">适用专业</text><text class="course-info-value">{{course.majorLabel}}</text></view>
+        <view class="course-info-cell course-info-cell-wide course-info-cell-textbook"><text class="course-info-label">教材名称</text><text class="course-info-value">{{course.textbookLabel}}</text></view>
+      </view>
+    </view>
+
+    <view class="section-head"><text class="section-title">课程评论</text></view>
+    <view class="feedback-card surface">
+      <view class="comment-composer"><textarea class="field-textarea" value="{{commentText}}" maxlength="300" placeholder="登录并点赞后可评论" disabled="{{!feedbackConnected || !isLoggedIn || !hasLiked}}" bindinput="onCommentInput"></textarea><view class="comment-action"><text>{{commentText.length}}/300</text><button class="primary-button comment-submit" loading="{{isSubmittingComment}}" disabled="{{!feedbackConnected || !isLoggedIn || !hasLiked || isSubmittingComment}}" bindtap="submitComment">发布评论</button></view></view>
+       <view wx:if="{{comments.length}}" class="comment-list"><view wx:for="{{comments}}" wx:key="createdAt" class="comment-item"><view class="comment-meta"><text>用户</text><text>{{item.createdAt || ''}}</text></view><text class="comment-content">{{item.content}}</text></view></view>
+      <view wx:else class="comment-empty"><text>暂无评论</text></view>
+    </view>
+
+    <view wx:if="{{directoryTeachers.length}}">
+      <view class="section-head">
+        <text class="section-title">教师</text>
+      </view>
+      <view class="directory-list">
+        <view wx:for="{{directoryTeachers}}" wx:key="directoryId" class="directory-card surface">
+          <view class="directory-mark">{{item.name}}</view>
+          <view class="directory-copy">
+            <text class="directory-name">{{item.name}}</text>
+            <text class="meta-line">{{item.department}}</text>
+          </view>
+          <button class="like-control teacher-like-control {{item.hasLiked ? 'liked' : ''}}" data-id="{{item.directoryId}}" bindtap="likeTeacher" loading="{{item.isLiking}}" disabled="{{item.isLiking}}" aria-label="{{item.hasLiked ? '取消点赞，点赞数 ' + item.likeCount : '点赞，点赞数 ' + item.likeCount}}">
+            <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{item.hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!item.hasLiked}}" class="like-heart-cutout"></view></view></view>
+            <text class="like-count">{{item.likeCount}}</text>
+          </button>
+        </view>
+      </view>
+    </view>
+
+  </view>
+
+  <view wx:else class="surface empty-state missing-course">
+    <block wx:if="{{keyResolution === 'ambiguous-legacy-name'}}">
+      <text class="empty-title">该旧链接对应多个课程代码</text>
+      <text class="empty-copy">为避免跳转到错误课程，请从课程目录按代码重新选择。</text>
+      <text wx:for="{{ambiguousCandidates}}" wx:key="key" class="empty-copy">{{item.name}} · {{item.codeLabel}}</text>
+      <button class="primary-button" bindtap="goCatalog">返回课程目录</button>
+    </block>
+    <block wx:else>
+      <text class="empty-title">未找到课程</text>
+      <text class="empty-copy">该链接对应的课程可能尚未同步，或已不在当前专业课范围内。</text>
+    </block>
+  </view>
+</view>

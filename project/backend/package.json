@@ -1,0 +1,28 @@
+{
+  "name": "njust-math-stat-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:migrate": "node ../../utils/migrate.js",
+    "db:seed": "node ../../utils/seed-courses.js",
+    "test": "vitest run --globals",
+    "check": "node --check src/app.js && node --check src/server.js && node --check ../../utils/migrate.js && node --check ../../utils/seed-courses.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "pino": "^9.6.0",
+    "pino-http": "^10.3.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.8"
+  }
+}

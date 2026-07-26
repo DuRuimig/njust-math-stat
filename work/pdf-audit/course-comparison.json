@@ -1,0 +1,1743 @@
+{
+  "source": {
+    "pdf_text": "work/pdf-audit/source-layout.txt",
+    "pdf_metadata": {
+      "creator": "Aspose Ltd.",
+      "creation_date": "2022-11-11",
+      "page_count": 44
+    },
+    "scope": "PDF 中三个专业的指导性教学计划表；不把学院简介或流程图当作课程定义来源。"
+  },
+  "summary": {
+    "数学与应用数学": {
+      "current_course_count": 46,
+      "official_table_course_count": 46,
+      "current_categories": {
+        "学科教育": 7,
+        "专业选修": 16,
+        "专业基础": 19,
+        "专业实践": 4
+      },
+      "official_categories": {
+        "学科教育": 7,
+        "专业基础": 19,
+        "专业选修": 16,
+        "专业实践": 4
+      }
+    },
+    "信息与计算科学": {
+      "current_course_count": 45,
+      "official_table_course_count": 45,
+      "current_categories": {
+        "学科教育": 7,
+        "专业选修": 15,
+        "专业基础": 19,
+        "专业实践": 4
+      },
+      "official_categories": {
+        "学科教育": 7,
+        "专业基础": 19,
+        "专业选修": 15,
+        "专业实践": 4
+      }
+    },
+    "应用统计学": {
+      "current_course_count": 42,
+      "official_table_course_count": 42,
+      "current_categories": {
+        "学科教育": 7,
+        "专业选修": 12,
+        "专业基础": 19,
+        "专业实践": 4
+      },
+      "official_categories": {
+        "学科教育": 7,
+        "专业基础": 19,
+        "专业选修": 12,
+        "专业实践": 4
+      }
+    },
+    "all": {
+      "current_course_count": 133,
+      "official_rows_parsed": 133,
+      "field_conflict_count": 0,
+      "missing_from_pdf_table_count": 0,
+      "extra_in_pdf_table_count": 0,
+      "hours_fill_candidate_count": 133
+    }
+  },
+  "conflicts": [],
+  "missing_from_pdf_tables": [],
+  "extra_in_pdf_tables": [],
+  "hours_fill_candidates": [
+    {
+      "major": "数学与应用数学",
+      "code": "07029801",
+      "name": "微观经济学",
+      "hours": 48,
+      "source_line": 565
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11020406",
+      "name": "毕业实习",
+      "hours": 120,
+      "source_line": 581
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11020601",
+      "name": "常微分方程",
+      "hours": 48,
+      "source_line": 528
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11022403",
+      "name": "复变函数",
+      "hours": 48,
+      "source_line": 529
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11022608",
+      "name": "概率论",
+      "hours": 48,
+      "source_line": 527
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11025204",
+      "name": "计算几何与计算机图形学",
+      "hours": 32,
+      "source_line": 568
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11027304",
+      "name": "近世代数",
+      "hours": 48,
+      "source_line": 538
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11028502",
+      "name": "认识实习",
+      "hours": 80,
+      "source_line": 580
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11029302",
+      "name": "数学建模",
+      "hours": 48,
+      "source_line": 530
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11029401",
+      "name": "数学物理方程",
+      "hours": 48,
+      "source_line": 535
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11029803",
+      "name": "数值分析",
+      "hours": 64,
+      "source_line": 531
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11030104",
+      "name": "随机过程引论",
+      "hours": 48,
+      "source_line": 540
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11037103",
+      "name": "微分方程数值解",
+      "hours": 32,
+      "source_line": 533
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11037201",
+      "name": "泛函分析",
+      "hours": 48,
+      "source_line": 542
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11037403",
+      "name": "现代数学新进展",
+      "hours": 32,
+      "source_line": 558
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11037802",
+      "name": "金融工程学",
+      "hours": 32,
+      "source_line": 566
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11038303",
+      "name": "实变函数",
+      "hours": 48,
+      "source_line": 536
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11040202",
+      "name": "微分几何",
+      "hours": 48,
+      "source_line": 539
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11046003",
+      "name": "多元统计分析",
+      "hours": 48,
+      "source_line": 572
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11046202",
+      "name": "计算智能",
+      "hours": 32,
+      "source_line": 554
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11046501",
+      "name": "风险管理",
+      "hours": 32,
+      "source_line": 573
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11047001",
+      "name": "时间序列分析",
+      "hours": 32,
+      "source_line": 571
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11048202",
+      "name": "最优控制理论",
+      "hours": 48,
+      "source_line": 557
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11048802",
+      "name": "微分流形",
+      "hours": 32,
+      "source_line": 543
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11129201",
+      "name": "数学分析（Ⅰ）",
+      "hours": 80,
+      "source_line": 513
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11229201",
+      "name": "数学分析（Ⅱ）",
+      "hours": 96,
+      "source_line": 515
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11329201",
+      "name": "数学分析（Ⅲ）",
+      "hours": 96,
+      "source_line": 516
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13031701",
+      "name": "数学与应用数学课程设计",
+      "hours": 120,
+      "source_line": 544
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13031801",
+      "name": "毕业设计（论文）",
+      "hours": 560,
+      "source_line": 582
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13032101",
+      "name": "偏微分方程理论",
+      "hours": 48,
+      "source_line": 562
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13032201",
+      "name": "密码学与编码理论",
+      "hours": 48,
+      "source_line": 551
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13032601",
+      "name": "大数据安全与信息处理实践",
+      "hours": 32,
+      "source_line": 560
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13034705",
+      "name": "图像处理中的数学方法",
+      "hours": 32,
+      "source_line": 556
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13132302",
+      "name": "机器学习与数据挖掘",
+      "hours": 48,
+      "source_line": 552
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13232302",
+      "name": "数据科学的数学理论",
+      "hours": 48,
+      "source_line": 555
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "22000201",
+      "name": "现代工程认知实践",
+      "hours": 40,
+      "source_line": 517
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71000301",
+      "name": "数据库与数据库系统",
+      "hours": 32,
+      "source_line": 553
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71000401",
+      "name": "数理统计",
+      "hours": 48,
+      "source_line": 532
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71000501",
+      "name": "数学科技论文写作",
+      "hours": 16,
+      "source_line": 579
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71000601",
+      "name": "数学应用软件设计",
+      "hours": 80,
+      "source_line": 526
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71000701",
+      "name": "拓扑学",
+      "hours": 48,
+      "source_line": 537
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71001001",
+      "name": "运筹学",
+      "hours": 48,
+      "source_line": 541
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71001101",
+      "name": "最优化理论",
+      "hours": 48,
+      "source_line": 534
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71100201",
+      "name": "代数与几何（Ⅰ）",
+      "hours": 80,
+      "source_line": 512
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71200201",
+      "name": "代数与几何（Ⅱ）",
+      "hours": 80,
+      "source_line": 514
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "88000001",
+      "name": "科研训练",
+      "hours": 80,
+      "source_line": 518
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "06022403",
+      "name": "数据结构",
+      "hours": 48,
+      "source_line": 1171
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "06031301",
+      "name": "高性能计算引论",
+      "hours": 32,
+      "source_line": 1206
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "07029801",
+      "name": "微观经济学",
+      "hours": 48,
+      "source_line": 1197
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11020401",
+      "name": "毕业实习",
+      "hours": 120,
+      "source_line": 1216
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11020601",
+      "name": "常微分方程",
+      "hours": 48,
+      "source_line": 1161
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11022403",
+      "name": "复变函数",
+      "hours": 48,
+      "source_line": 1162
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11022608",
+      "name": "概率论",
+      "hours": 48,
+      "source_line": 1160
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11025204",
+      "name": "计算几何与计算机图形学",
+      "hours": 32,
+      "source_line": 1200
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11027304",
+      "name": "近世代数",
+      "hours": 48,
+      "source_line": 1189
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11027702",
+      "name": "离散数学",
+      "hours": 48,
+      "source_line": 1172
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11028504",
+      "name": "认识实习",
+      "hours": 80,
+      "source_line": 1215
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11029302",
+      "name": "数学建模",
+      "hours": 48,
+      "source_line": 1163
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11029401",
+      "name": "数学物理方程",
+      "hours": 48,
+      "source_line": 1185
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11029803",
+      "name": "数值分析",
+      "hours": 64,
+      "source_line": 1164
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11030104",
+      "name": "随机过程引论",
+      "hours": 48,
+      "source_line": 1205
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11037201",
+      "name": "泛函分析",
+      "hours": 48,
+      "source_line": 1190
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11037403",
+      "name": "现代数学新进展",
+      "hours": 32,
+      "source_line": 1191
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11037802",
+      "name": "金融工程学",
+      "hours": 32,
+      "source_line": 1198
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11038303",
+      "name": "实变函数",
+      "hours": 48,
+      "source_line": 1168
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11040202",
+      "name": "微分几何",
+      "hours": 48,
+      "source_line": 1188
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11046202",
+      "name": "计算智能",
+      "hours": 32,
+      "source_line": 1173
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11047001",
+      "name": "时间序列分析",
+      "hours": 32,
+      "source_line": 1204
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11129201",
+      "name": "数学分析（Ⅰ）",
+      "hours": 80,
+      "source_line": 1144
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11229201",
+      "name": "数学分析（Ⅱ）",
+      "hours": 96,
+      "source_line": 1146
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11329201",
+      "name": "数学分析（Ⅲ）",
+      "hours": 96,
+      "source_line": 1147
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13031802",
+      "name": "毕业设计（论文）",
+      "hours": 560,
+      "source_line": 1217
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13032201",
+      "name": "密码学与编码理论",
+      "hours": 48,
+      "source_line": 1170
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13032401",
+      "name": "现代科学计算",
+      "hours": 32,
+      "source_line": 1166
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13032501",
+      "name": "数据科学前沿选讲",
+      "hours": 32,
+      "source_line": 1195
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13032601",
+      "name": "大数据安全与信息处理实践",
+      "hours": 32,
+      "source_line": 1193
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13034705",
+      "name": "图像处理中的数学方法",
+      "hours": 32,
+      "source_line": 1174
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13132302",
+      "name": "机器学习与数据挖掘",
+      "hours": 48,
+      "source_line": 1169
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13232302",
+      "name": "数据科学的数学理论",
+      "hours": 48,
+      "source_line": 1175
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "22000201",
+      "name": "现代工程认知实践",
+      "hours": 40,
+      "source_line": 1148
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000301",
+      "name": "数据库与数据库系统",
+      "hours": 32,
+      "source_line": 1176
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000401",
+      "name": "数理统计",
+      "hours": 48,
+      "source_line": 1165
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000501",
+      "name": "数学科技论文写作",
+      "hours": 16,
+      "source_line": 1214
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000601",
+      "name": "数学应用软件设计",
+      "hours": 80,
+      "source_line": 1159
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000701",
+      "name": "拓扑学",
+      "hours": 48,
+      "source_line": 1186
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000801",
+      "name": "信息与计算科学课程设计",
+      "hours": 120,
+      "source_line": 1177
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71001001",
+      "name": "运筹学",
+      "hours": 48,
+      "source_line": 1187
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71001101",
+      "name": "最优化理论",
+      "hours": 48,
+      "source_line": 1167
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71100201",
+      "name": "代数与几何（Ⅰ）",
+      "hours": 80,
+      "source_line": 1143
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71200201",
+      "name": "代数与几何（Ⅱ）",
+      "hours": 80,
+      "source_line": 1145
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "88000001",
+      "name": "科研训练",
+      "hours": 80,
+      "source_line": 1149
+    },
+    {
+      "major": "应用统计学",
+      "code": "06022402",
+      "name": "数据结构",
+      "hours": 48,
+      "source_line": 1838
+    },
+    {
+      "major": "应用统计学",
+      "code": "06037201",
+      "name": "模式识别与大数据分析技术",
+      "hours": 32,
+      "source_line": 1832
+    },
+    {
+      "major": "应用统计学",
+      "code": "07029801",
+      "name": "微观经济学",
+      "hours": 48,
+      "source_line": 1830
+    },
+    {
+      "major": "应用统计学",
+      "code": "11020408",
+      "name": "毕业实习",
+      "hours": 120,
+      "source_line": 1852
+    },
+    {
+      "major": "应用统计学",
+      "code": "11020601",
+      "name": "常微分方程",
+      "hours": 48,
+      "source_line": 1798
+    },
+    {
+      "major": "应用统计学",
+      "code": "11022403",
+      "name": "复变函数",
+      "hours": 48,
+      "source_line": 1801
+    },
+    {
+      "major": "应用统计学",
+      "code": "11022608",
+      "name": "概率论",
+      "hours": 48,
+      "source_line": 1797
+    },
+    {
+      "major": "应用统计学",
+      "code": "11029302",
+      "name": "数学建模",
+      "hours": 48,
+      "source_line": 1800
+    },
+    {
+      "major": "应用统计学",
+      "code": "11029401",
+      "name": "数学物理方程",
+      "hours": 48,
+      "source_line": 1822
+    },
+    {
+      "major": "应用统计学",
+      "code": "11029803",
+      "name": "数值分析",
+      "hours": 64,
+      "source_line": 1802
+    },
+    {
+      "major": "应用统计学",
+      "code": "11030104",
+      "name": "随机过程引论",
+      "hours": 48,
+      "source_line": 1810
+    },
+    {
+      "major": "应用统计学",
+      "code": "11037201",
+      "name": "泛函分析",
+      "hours": 48,
+      "source_line": 1826
+    },
+    {
+      "major": "应用统计学",
+      "code": "11037403",
+      "name": "现代数学新进展",
+      "hours": 32,
+      "source_line": 1827
+    },
+    {
+      "major": "应用统计学",
+      "code": "11037802",
+      "name": "金融工程学",
+      "hours": 32,
+      "source_line": 1823
+    },
+    {
+      "major": "应用统计学",
+      "code": "11038303",
+      "name": "实变函数",
+      "hours": 48,
+      "source_line": 1804
+    },
+    {
+      "major": "应用统计学",
+      "code": "11046003",
+      "name": "多元统计分析",
+      "hours": 48,
+      "source_line": 1808
+    },
+    {
+      "major": "应用统计学",
+      "code": "11046501",
+      "name": "风险管理",
+      "hours": 32,
+      "source_line": 1839
+    },
+    {
+      "major": "应用统计学",
+      "code": "11046801",
+      "name": "认识实习",
+      "hours": 80,
+      "source_line": 1853
+    },
+    {
+      "major": "应用统计学",
+      "code": "11046902",
+      "name": "应用线性回归",
+      "hours": 32,
+      "source_line": 1803
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047001",
+      "name": "时间序列分析",
+      "hours": 32,
+      "source_line": 1809
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047101",
+      "name": "非参数统计",
+      "hours": 32,
+      "source_line": 1812
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047501",
+      "name": "统计决策与贝叶斯分析",
+      "hours": 32,
+      "source_line": 1813
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047602",
+      "name": "抽样调查",
+      "hours": 32,
+      "source_line": 1805
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047801",
+      "name": "试验设计",
+      "hours": 32,
+      "source_line": 1806
+    },
+    {
+      "major": "应用统计学",
+      "code": "11129201",
+      "name": "数学分析（Ⅰ）",
+      "hours": 80,
+      "source_line": 1776
+    },
+    {
+      "major": "应用统计学",
+      "code": "11229201",
+      "name": "数学分析（Ⅱ）",
+      "hours": 96,
+      "source_line": 1778
+    },
+    {
+      "major": "应用统计学",
+      "code": "11329201",
+      "name": "数学分析（Ⅲ）",
+      "hours": 96,
+      "source_line": 1779
+    },
+    {
+      "major": "应用统计学",
+      "code": "13031803",
+      "name": "毕业设计",
+      "hours": 560,
+      "source_line": 1851
+    },
+    {
+      "major": "应用统计学",
+      "code": "13032601",
+      "name": "大数据安全与信息处理实践",
+      "hours": 32,
+      "source_line": 1828
+    },
+    {
+      "major": "应用统计学",
+      "code": "13032701",
+      "name": "统计计算与软件",
+      "hours": 48,
+      "source_line": 1811
+    },
+    {
+      "major": "应用统计学",
+      "code": "13034705",
+      "name": "图像处理中的数学方法",
+      "hours": 32,
+      "source_line": 1831
+    },
+    {
+      "major": "应用统计学",
+      "code": "13132302",
+      "name": "机器学习与数据挖掘",
+      "hours": 48,
+      "source_line": 1807
+    },
+    {
+      "major": "应用统计学",
+      "code": "13232302",
+      "name": "数据科学的数学理论",
+      "hours": 48,
+      "source_line": 1825
+    },
+    {
+      "major": "应用统计学",
+      "code": "22000201",
+      "name": "现代工程认知实践",
+      "hours": 40,
+      "source_line": 1780
+    },
+    {
+      "major": "应用统计学",
+      "code": "71000401",
+      "name": "数理统计",
+      "hours": 48,
+      "source_line": 1799
+    },
+    {
+      "major": "应用统计学",
+      "code": "71000501",
+      "name": "数学科技论文写作",
+      "hours": 16,
+      "source_line": 1850
+    },
+    {
+      "major": "应用统计学",
+      "code": "71000601",
+      "name": "数学应用软件设计",
+      "hours": 80,
+      "source_line": 1796
+    },
+    {
+      "major": "应用统计学",
+      "code": "71000901",
+      "name": "应用统计学课程设计",
+      "hours": 120,
+      "source_line": 1814
+    },
+    {
+      "major": "应用统计学",
+      "code": "71001101",
+      "name": "最优化理论",
+      "hours": 48,
+      "source_line": 1824
+    },
+    {
+      "major": "应用统计学",
+      "code": "71100201",
+      "name": "代数与几何（Ⅰ）",
+      "hours": 80,
+      "source_line": 1775
+    },
+    {
+      "major": "应用统计学",
+      "code": "71200201",
+      "name": "代数与几何（Ⅱ）",
+      "hours": 80,
+      "source_line": 1777
+    },
+    {
+      "major": "应用统计学",
+      "code": "88000001",
+      "name": "科研训练",
+      "hours": 80,
+      "source_line": 1786
+    }
+  ],
+  "runtime_check": {
+    "runtime_course_count": 103,
+    "all_runtime_courses_are_in_current_parse": true,
+    "runtime_courses_with_missing_hours": 103,
+    "runtime_hours_fill_candidate_count": 103,
+    "runtime_unmatched_count": 0,
+    "hours_distribution": {
+      "32": 28,
+      "48": 57,
+      "64": 3,
+      "80": 9,
+      "96": 6
+    }
+  },
+  "runtime_hours_fill_candidates": [
+    {
+      "major": "数学与应用数学",
+      "code": "11129201",
+      "name": "数学分析（Ⅰ）",
+      "hours": 80,
+      "source_line": 513
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71100201",
+      "name": "代数与几何（Ⅰ）",
+      "hours": 80,
+      "source_line": 512
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "07029801",
+      "name": "微观经济学",
+      "hours": 48,
+      "source_line": 565
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11229201",
+      "name": "数学分析（Ⅱ）",
+      "hours": 96,
+      "source_line": 515
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71200201",
+      "name": "代数与几何（Ⅱ）",
+      "hours": 80,
+      "source_line": 514
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11022608",
+      "name": "概率论",
+      "hours": 48,
+      "source_line": 527
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11329201",
+      "name": "数学分析（Ⅲ）",
+      "hours": 96,
+      "source_line": 516
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11020601",
+      "name": "常微分方程",
+      "hours": 48,
+      "source_line": 528
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11022403",
+      "name": "复变函数",
+      "hours": 48,
+      "source_line": 529
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11029302",
+      "name": "数学建模",
+      "hours": 48,
+      "source_line": 530
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11029803",
+      "name": "数值分析",
+      "hours": 64,
+      "source_line": 531
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71000401",
+      "name": "数理统计",
+      "hours": 48,
+      "source_line": 532
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11025204",
+      "name": "计算几何与计算机图形学",
+      "hours": 32,
+      "source_line": 568
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11029401",
+      "name": "数学物理方程",
+      "hours": 48,
+      "source_line": 535
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11037802",
+      "name": "金融工程学",
+      "hours": 32,
+      "source_line": 566
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11038303",
+      "name": "实变函数",
+      "hours": 48,
+      "source_line": 536
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13032201",
+      "name": "密码学与编码理论",
+      "hours": 48,
+      "source_line": 551
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13132302",
+      "name": "机器学习与数据挖掘",
+      "hours": 48,
+      "source_line": 552
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71000301",
+      "name": "数据库与数据库系统",
+      "hours": 32,
+      "source_line": 553
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71000701",
+      "name": "拓扑学",
+      "hours": 48,
+      "source_line": 537
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71001101",
+      "name": "最优化理论",
+      "hours": 48,
+      "source_line": 534
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11027304",
+      "name": "近世代数",
+      "hours": 48,
+      "source_line": 538
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11030104",
+      "name": "随机过程引论",
+      "hours": 48,
+      "source_line": 540
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11040202",
+      "name": "微分几何",
+      "hours": 48,
+      "source_line": 539
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11046003",
+      "name": "多元统计分析",
+      "hours": 48,
+      "source_line": 572
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11046202",
+      "name": "计算智能",
+      "hours": 32,
+      "source_line": 554
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11047001",
+      "name": "时间序列分析",
+      "hours": 32,
+      "source_line": 571
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11048202",
+      "name": "最优控制理论",
+      "hours": 48,
+      "source_line": 557
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13034705",
+      "name": "图像处理中的数学方法",
+      "hours": 32,
+      "source_line": 556
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13232302",
+      "name": "数据科学的数学理论",
+      "hours": 48,
+      "source_line": 555
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "71001001",
+      "name": "运筹学",
+      "hours": 48,
+      "source_line": 541
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11037201",
+      "name": "泛函分析",
+      "hours": 48,
+      "source_line": 542
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11037403",
+      "name": "现代数学新进展",
+      "hours": 32,
+      "source_line": 558
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11046501",
+      "name": "风险管理",
+      "hours": 32,
+      "source_line": 573
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "11048802",
+      "name": "微分流形",
+      "hours": 32,
+      "source_line": 543
+    },
+    {
+      "major": "数学与应用数学",
+      "code": "13032101",
+      "name": "偏微分方程理论",
+      "hours": 48,
+      "source_line": 562
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11129201",
+      "name": "数学分析（Ⅰ）",
+      "hours": 80,
+      "source_line": 1144
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71100201",
+      "name": "代数与几何（Ⅰ）",
+      "hours": 80,
+      "source_line": 1143
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "07029801",
+      "name": "微观经济学",
+      "hours": 48,
+      "source_line": 1197
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11229201",
+      "name": "数学分析（Ⅱ）",
+      "hours": 96,
+      "source_line": 1146
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71200201",
+      "name": "代数与几何（Ⅱ）",
+      "hours": 80,
+      "source_line": 1145
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11022608",
+      "name": "概率论",
+      "hours": 48,
+      "source_line": 1160
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11329201",
+      "name": "数学分析（Ⅲ）",
+      "hours": 96,
+      "source_line": 1147
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11020601",
+      "name": "常微分方程",
+      "hours": 48,
+      "source_line": 1161
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11022403",
+      "name": "复变函数",
+      "hours": 48,
+      "source_line": 1162
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11029302",
+      "name": "数学建模",
+      "hours": 48,
+      "source_line": 1163
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11029803",
+      "name": "数值分析",
+      "hours": 64,
+      "source_line": 1164
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000401",
+      "name": "数理统计",
+      "hours": 48,
+      "source_line": 1165
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11025204",
+      "name": "计算几何与计算机图形学",
+      "hours": 32,
+      "source_line": 1200
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11029401",
+      "name": "数学物理方程",
+      "hours": 48,
+      "source_line": 1185
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11037802",
+      "name": "金融工程学",
+      "hours": 32,
+      "source_line": 1198
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11038303",
+      "name": "实变函数",
+      "hours": 48,
+      "source_line": 1168
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13032201",
+      "name": "密码学与编码理论",
+      "hours": 48,
+      "source_line": 1170
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13132302",
+      "name": "机器学习与数据挖掘",
+      "hours": 48,
+      "source_line": 1169
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000701",
+      "name": "拓扑学",
+      "hours": 48,
+      "source_line": 1186
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71001101",
+      "name": "最优化理论",
+      "hours": 48,
+      "source_line": 1167
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "06022403",
+      "name": "数据结构",
+      "hours": 48,
+      "source_line": 1171
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11027304",
+      "name": "近世代数",
+      "hours": 48,
+      "source_line": 1189
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11027702",
+      "name": "离散数学",
+      "hours": 48,
+      "source_line": 1172
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11030104",
+      "name": "随机过程引论",
+      "hours": 48,
+      "source_line": 1205
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11040202",
+      "name": "微分几何",
+      "hours": 48,
+      "source_line": 1188
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11046202",
+      "name": "计算智能",
+      "hours": 32,
+      "source_line": 1173
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11047001",
+      "name": "时间序列分析",
+      "hours": 32,
+      "source_line": 1204
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13034705",
+      "name": "图像处理中的数学方法",
+      "hours": 32,
+      "source_line": 1174
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13232302",
+      "name": "数据科学的数学理论",
+      "hours": 48,
+      "source_line": 1175
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71001001",
+      "name": "运筹学",
+      "hours": 48,
+      "source_line": 1187
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11037201",
+      "name": "泛函分析",
+      "hours": 48,
+      "source_line": 1190
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "11037403",
+      "name": "现代数学新进展",
+      "hours": 32,
+      "source_line": 1191
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "13032501",
+      "name": "数据科学前沿选讲",
+      "hours": 32,
+      "source_line": 1195
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "71000301",
+      "name": "数据库与数据库系统",
+      "hours": 32,
+      "source_line": 1176
+    },
+    {
+      "major": "信息与计算科学",
+      "code": "06031301",
+      "name": "高性能计算引论",
+      "hours": 32,
+      "source_line": 1206
+    },
+    {
+      "major": "应用统计学",
+      "code": "11129201",
+      "name": "数学分析（Ⅰ）",
+      "hours": 80,
+      "source_line": 1776
+    },
+    {
+      "major": "应用统计学",
+      "code": "71100201",
+      "name": "代数与几何（Ⅰ）",
+      "hours": 80,
+      "source_line": 1775
+    },
+    {
+      "major": "应用统计学",
+      "code": "07029801",
+      "name": "微观经济学",
+      "hours": 48,
+      "source_line": 1830
+    },
+    {
+      "major": "应用统计学",
+      "code": "11229201",
+      "name": "数学分析（Ⅱ）",
+      "hours": 96,
+      "source_line": 1778
+    },
+    {
+      "major": "应用统计学",
+      "code": "71200201",
+      "name": "代数与几何（Ⅱ）",
+      "hours": 80,
+      "source_line": 1777
+    },
+    {
+      "major": "应用统计学",
+      "code": "11022608",
+      "name": "概率论",
+      "hours": 48,
+      "source_line": 1797
+    },
+    {
+      "major": "应用统计学",
+      "code": "11329201",
+      "name": "数学分析（Ⅲ）",
+      "hours": 96,
+      "source_line": 1779
+    },
+    {
+      "major": "应用统计学",
+      "code": "11020601",
+      "name": "常微分方程",
+      "hours": 48,
+      "source_line": 1798
+    },
+    {
+      "major": "应用统计学",
+      "code": "11022403",
+      "name": "复变函数",
+      "hours": 48,
+      "source_line": 1801
+    },
+    {
+      "major": "应用统计学",
+      "code": "11029302",
+      "name": "数学建模",
+      "hours": 48,
+      "source_line": 1800
+    },
+    {
+      "major": "应用统计学",
+      "code": "11029803",
+      "name": "数值分析",
+      "hours": 64,
+      "source_line": 1802
+    },
+    {
+      "major": "应用统计学",
+      "code": "71000401",
+      "name": "数理统计",
+      "hours": 48,
+      "source_line": 1799
+    },
+    {
+      "major": "应用统计学",
+      "code": "11029401",
+      "name": "数学物理方程",
+      "hours": 48,
+      "source_line": 1822
+    },
+    {
+      "major": "应用统计学",
+      "code": "11037802",
+      "name": "金融工程学",
+      "hours": 32,
+      "source_line": 1823
+    },
+    {
+      "major": "应用统计学",
+      "code": "11038303",
+      "name": "实变函数",
+      "hours": 48,
+      "source_line": 1804
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047602",
+      "name": "抽样调查",
+      "hours": 32,
+      "source_line": 1805
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047801",
+      "name": "试验设计",
+      "hours": 32,
+      "source_line": 1806
+    },
+    {
+      "major": "应用统计学",
+      "code": "13132302",
+      "name": "机器学习与数据挖掘",
+      "hours": 48,
+      "source_line": 1807
+    },
+    {
+      "major": "应用统计学",
+      "code": "71001101",
+      "name": "最优化理论",
+      "hours": 48,
+      "source_line": 1824
+    },
+    {
+      "major": "应用统计学",
+      "code": "06022402",
+      "name": "数据结构",
+      "hours": 48,
+      "source_line": 1838
+    },
+    {
+      "major": "应用统计学",
+      "code": "06037201",
+      "name": "模式识别与大数据分析技术",
+      "hours": 32,
+      "source_line": 1832
+    },
+    {
+      "major": "应用统计学",
+      "code": "11030104",
+      "name": "随机过程引论",
+      "hours": 48,
+      "source_line": 1810
+    },
+    {
+      "major": "应用统计学",
+      "code": "11046003",
+      "name": "多元统计分析",
+      "hours": 48,
+      "source_line": 1808
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047001",
+      "name": "时间序列分析",
+      "hours": 32,
+      "source_line": 1809
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047101",
+      "name": "非参数统计",
+      "hours": 32,
+      "source_line": 1812
+    },
+    {
+      "major": "应用统计学",
+      "code": "13032701",
+      "name": "统计计算与软件",
+      "hours": 48,
+      "source_line": 1811
+    },
+    {
+      "major": "应用统计学",
+      "code": "13034705",
+      "name": "图像处理中的数学方法",
+      "hours": 32,
+      "source_line": 1831
+    },
+    {
+      "major": "应用统计学",
+      "code": "13232302",
+      "name": "数据科学的数学理论",
+      "hours": 48,
+      "source_line": 1825
+    },
+    {
+      "major": "应用统计学",
+      "code": "11037201",
+      "name": "泛函分析",
+      "hours": 48,
+      "source_line": 1826
+    },
+    {
+      "major": "应用统计学",
+      "code": "11037403",
+      "name": "现代数学新进展",
+      "hours": 32,
+      "source_line": 1827
+    },
+    {
+      "major": "应用统计学",
+      "code": "11046501",
+      "name": "风险管理",
+      "hours": 32,
+      "source_line": 1839
+    },
+    {
+      "major": "应用统计学",
+      "code": "11047501",
+      "name": "统计决策与贝叶斯分析",
+      "hours": 32,
+      "source_line": 1813
+    }
+  ],
+  "runtime_unmatched": []
+}

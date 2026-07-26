@@ -1,0 +1,23 @@
+<view class="page-shell ai-page">
+  <text class="eyebrow">本地问答演示</text>
+  <text class="page-title">选课问答</text>
+  <text class="page-lead">用于演示提问流程，不把关键词匹配包装为真实 AI、RAG 或课程建议。</text>
+
+  <view class="notice">
+    <text class="notice-title">当前没有连接知识库</text>
+    <text>回答只基于本地已同步的课程名称、代码、专业和分类做关键词提示，不调用模型、接口或外部知识内容。</text>
+  </view>
+
+  <view class="chat-panel surface">
+    <view wx:for="{{messages}}" wx:key="id" class="chat-row {{item.role === 'user' ? 'from-user' : 'from-assistant'}}">
+      <text class="chat-role">{{item.role === 'user' ? '我的提问' : '本地原型提示'}}</text>
+      <text class="chat-bubble">{{item.content}}</text>
+    </view>
+  </view>
+
+  <view class="composer">
+    <input value="{{question}}" placeholder="例如：搜索概率论的课程代码" placeholder-class="composer-placeholder" bindinput="onQuestionInput" confirm-type="send" bindconfirm="sendQuestion" />
+    <button class="send-button" bindtap="sendQuestion">发送</button>
+  </view>
+  <button wx:if="{{messages.length > 1}}" class="clear-button" bindtap="clearConversation">清除本地问答记录</button>
+</view>

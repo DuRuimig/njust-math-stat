@@ -1,0 +1,24 @@
+.teaching-page .page-title { display: block; }
+.feedback-status { margin-bottom: 16rpx; padding: 16rpx 20rpx; border: 1rpx solid #edc9a8; border-radius: 10rpx; background: var(--orange-soft); color: #784125; font-size: 23rpx; line-height: 1.5; }
+.teacher-list { display: flex; flex-direction: column; gap: 14rpx; }
+.teacher-card { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 20rpx; }
+.teacher-copy { flex: 1; min-width: 0; }
+.teacher-name { display: block; margin-bottom: 5rpx; overflow: hidden; color: var(--ink); font-size: 29rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.like-control { display: inline-flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; min-width: 88rpx; min-height: 88rpx; padding: 8rpx 14rpx; box-sizing: border-box; border: 1rpx solid #d8dee9; border-radius: 10rpx; background: #fff; color: #707b8e; font-size: 22rpx; font-weight: 700; line-height: 1.15; text-align: center; }
+.like-control:active { background: #f6f7fb; }
+.like-control[disabled] { opacity: 1; }
+.like-control.liked { border-color: #f1c7d2; background: #fff; color: #df5e7e; }
+.like-control.liked:active { background: #fff5f7; }
+.like-control[disabled] { opacity: .72; }
+.like-count { display: block; min-width: 18rpx; }
+.like-heart { position: relative; display: block; width: 34rpx; height: 31rpx; }
+.like-heart-shape::before, .like-heart-shape::after, .like-heart-cutout::before, .like-heart-cutout::after { position: absolute; display: block; content: ""; }
+.like-heart-filled, .like-heart-outline { background: #a8b1c0; }
+.like-heart-filled { background: #ec6d8a; }
+.like-heart-shape { position: absolute; left: 8rpx; top: 11rpx; width: 16rpx; height: 16rpx; border-radius: 3rpx 0 3rpx 0; transform: rotate(-45deg); }
+.like-heart-filled::before, .like-heart-outline::before { left: 0; top: -8rpx; width: 16rpx; height: 16rpx; border-radius: 50%; background: inherit; }
+.like-heart-filled::after, .like-heart-outline::after { left: 8rpx; top: 0; width: 16rpx; height: 16rpx; border-radius: 50%; background: inherit; }
+.like-heart-cutout { position: absolute; left: 3rpx; top: 3rpx; width: 10rpx; height: 10rpx; border-radius: 2rpx 0 2rpx 0; background: #fff; }
+.like-heart-cutout::before { left: 0; top: -5rpx; width: 10rpx; height: 10rpx; border-radius: 50%; background: #fff; }
+.like-heart-cutout::after { left: 5rpx; top: 0; width: 10rpx; height: 10rpx; border-radius: 50%; background: #fff; }
+.short-empty { padding: 34rpx 24rpx; }

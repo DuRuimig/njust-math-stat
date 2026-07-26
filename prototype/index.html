@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>南理工数统课程资料库 - 原型预览</title>
+  <style>
+    :root { --ink:#17213a; --muted:#6b7280; --line:#e7eaf1; --bg:#f5f7fb; --blue:#4355d9; --blue-dark:#293aa9; --soft:#eef0ff; --mint:#e6f8f3; --gold:#fff5d8; --white:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#e9edf5; color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+    button,input,select,textarea { font:inherit; }
+    button { border:0; cursor:pointer; }
+    :focus-visible { outline:3px solid rgba(67,85,217,.5); outline-offset:3px; }
+    .phone { width:min(100vw,430px); min-height:100vh; margin:0 auto; background:var(--bg); position:relative; overflow:hidden; box-shadow:0 0 50px rgba(20,31,61,.12); }
+    .view { display:none; min-height:100vh; padding:26px 20px calc(94px + env(safe-area-inset-bottom)); animation:in .25s ease; }
+    .view.active { display:block; }
+    @keyframes in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    .eyebrow { color:var(--blue); font-size:12px; font-weight:750; letter-spacing:.6px; }
+    h1 { font-size:29px; line-height:1.2; margin:7px 0 4px; letter-spacing:0; }
+    h2 { font-size:19px; margin:25px 0 13px; }
+    .sub { margin:0; color:var(--muted); font-size:14px; line-height:1.5; }
+    .hero { border-radius:18px; padding:22px; color:#fff; background:linear-gradient(135deg,#293aa9,#5369e5); position:relative; overflow:hidden; margin-top:24px; }
+    .hero:after { content:"∑"; position:absolute; right:16px; bottom:-22px; font-size:118px; font-family:Georgia,serif; opacity:.13; }
+    .hero h2 { margin:0 0 7px; font-size:21px; position:relative; z-index:1; }
+    .hero p { margin:0; font-size:13px; line-height:1.55; color:#dfe4ff; max-width:250px; position:relative; z-index:1; }
+    .search { height:52px; display:flex; align-items:center; gap:10px; padding:0 15px; margin-top:16px; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 8px 22px rgba(37,54,120,.05); }
+    .search input { width:100%; border:0; outline:0; color:var(--ink); background:transparent; }
+    .search:focus-within { border-color:#aab5ff; box-shadow:0 0 0 3px rgba(67,85,217,.12); }
+    .icon { color:var(--blue); font-size:19px; line-height:1; }
+    .quick { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:17px 0 3px; }
+    .quick button { background:#fff; min-height:68px; border-radius:12px; color:#34415e; font-size:12px; box-shadow:0 2px 8px rgba(29,44,80,.04); transition:.18s; }
+    .quick button span { display:block; color:var(--blue); font-size:20px; margin-bottom:5px; }
+    .quick button:active,.card:active,.nav button:active { transform:scale(.97); }
+    .section-title { display:flex; align-items:center; justify-content:space-between; margin:27px 1px 12px; }
+    .section-title h2 { margin:0; font-size:18px; }.section-title button { color:var(--blue); background:none; font-size:13px; }
+    .card { background:#fff; border:1px solid #edf0f5; border-radius:14px; padding:15px; margin-bottom:10px; transition:.18s; }
+    .card:hover { box-shadow:0 8px 20px rgba(35,49,95,.07); transform:translateY(-1px); }
+    .row { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }.course-name { font-weight:760; font-size:16px; }.meta { margin-top:5px; font-size:12px; color:var(--muted); }.score { color:#e98b29; font-size:14px; font-weight:750; white-space:nowrap; }.tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:13px; }.tag { font-size:11px; color:#52607b; background:#f3f5f9; padding:4px 8px; border-radius:6px; }.tag.good { background:var(--mint); color:#277965; }.tag.warm { background:var(--gold); color:#986c10; }
+    .nav { height:calc(76px + env(safe-area-inset-bottom)); padding-bottom:env(safe-area-inset-bottom); position:fixed; bottom:0; width:min(100vw,430px); background:rgba(255,255,255,.95); backdrop-filter:blur(10px); border-top:1px solid var(--line); display:flex; z-index:20; }.nav button { flex:1; background:transparent; color:#8a92a4; font-size:11px; transition:.18s; }.nav button span { display:block; font-size:20px; height:27px; }.nav button.active { color:var(--blue); font-weight:700; }
+    .topline { display:flex; align-items:center; gap:12px; margin-bottom:20px; }.back { width:36px; height:36px; border-radius:10px; background:#fff; color:var(--ink); font-size:20px; }.topline strong { font-size:18px; }
+    .detail-head { padding:20px; background:#fff; border-radius:16px; }.detail-head h1 { font-size:23px; margin:6px 0; }.info { display:flex; gap:9px; flex-wrap:wrap; margin-top:14px; }.info span { color:#52607b; background:#f3f5f9; border-radius:7px; padding:5px 8px; font-size:12px; }
+    .rating { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:13px; }.rating div { background:#fff; border-radius:12px; padding:14px; }.rating small { display:block; color:var(--muted); margin-bottom:7px; }.rating b { font-size:19px; }.bar { display:inline-block; width:55px; height:6px; border-radius:9px; background:#e9edff; overflow:hidden; margin-left:8px; vertical-align:middle; }.bar i { display:block; height:100%; background:var(--blue); border-radius:9px; }
+    .review { border-left:3px solid #c9d1ff; }.review p { font-size:14px; color:#39445d; line-height:1.62; margin:10px 0 0; }.review-footer { margin-top:11px; display:flex; justify-content:space-between; color:#8b93a4; font-size:11px; }
+    .primary { background:var(--blue); color:#fff; border-radius:12px; height:48px; font-weight:700; width:100%; box-shadow:0 8px 16px rgba(67,85,217,.18); transition:.18s; }.primary:active { background:var(--blue-dark); transform:scale(.98); }.primary:disabled { cursor:not-allowed; background:#9da7e8; box-shadow:none; }
+    .chat { display:flex; flex-direction:column; gap:14px; }.bubble { max-width:86%; padding:12px 14px; border-radius:14px; font-size:14px; line-height:1.55; }.bubble.ai { background:#fff; border:1px solid var(--line); border-top-left-radius:4px; align-self:flex-start; }.bubble.me { background:var(--blue); color:#fff; border-top-right-radius:4px; align-self:flex-end; }.source { margin-top:9px; display:block; color:#596ddc; background:#f0f2ff; font-size:11px; padding:6px 8px; border-radius:6px; }.askbox { position:fixed; bottom:calc(88px + env(safe-area-inset-bottom)); width:calc(min(100vw,430px) - 40px); display:flex; background:#fff; padding:7px; border-radius:13px; border:1px solid var(--line); box-shadow:0 7px 22px rgba(24,35,69,.1); }.askbox input { outline:0; border:0; flex:1; min-width:0; padding:0 8px; }.send { height:34px; width:48px; border-radius:9px; background:var(--blue); color:#fff; }
+    .teacher { display:flex; gap:14px; align-items:center; }.avatar { width:48px; height:48px; display:grid; place-items:center; color:#fff; background:#6877dd; border-radius:14px; font-weight:800; }.teacher h3 { margin:0; font-size:17px; }.teacher p { margin:4px 0 0; color:var(--muted); font-size:12px; }
+    .profile { text-align:center; padding:24px 0 18px; }.profile .avatar { width:68px; height:68px; margin:0 auto 11px; border-radius:22px; font-size:22px; }.profile h2 { margin:0; }.profile p { color:var(--muted); font-size:13px; }.menu { background:#fff; border-radius:14px; overflow:hidden; }.menu button { width:100%; padding:16px; background:#fff; color:var(--ink); text-align:left; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; }.menu button:last-child { border:0; }
+    .modal { display:none; position:fixed; inset:0; background:rgba(17,26,49,.42); z-index:30; padding:50px 20px; align-items:flex-end; }.modal.show { display:flex; }.sheet { width:min(100%,430px); background:#fff; margin:0 auto; border-radius:18px 18px 0 0; padding:21px; animation:up .22s ease; }.sheet h2 { margin:0 0 8px; }.sheet textarea { width:100%; resize:none; height:105px; padding:11px; border:1px solid var(--line); outline:0; border-radius:10px; margin:14px 0; }.sheet textarea:focus { border-color:#aab5ff; }.close { float:right; background:#f1f3f8; color:#667085; width:28px; height:28px; border-radius:50%; }
+    @keyframes up { from { transform:translateY(40px); opacity:.3; } to { transform:none; opacity:1; } }
+    .toast { position:fixed; top:20px; left:50%; transform:translate(-50%,-150px); color:#fff; background:#1f2b4a; border-radius:9px; padding:11px 16px; font-size:13px; z-index:40; transition:.25s; }.toast.show { transform:translate(-50%,0); }
+    .action-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }.secondary { height:48px; border:1px solid #cbd2ff; color:var(--blue); background:#fff; border-radius:12px; font-weight:700; transition:.18s; }.secondary:active { transform:scale(.98); background:var(--soft); }
+    .filter-label { display:block; color:#4d5873; font-size:12px; font-weight:700; margin:15px 0 7px; }.filters { display:grid; grid-template-columns:1fr 1fr; gap:10px; }.select { width:100%; height:42px; border:1px solid var(--line); border-radius:10px; color:#43506b; background:#fff; padding:0 9px; outline:0; }.select:focus { border-color:#aab5ff; box-shadow:0 0 0 3px rgba(67,85,217,.1); }.filter-actions { display:flex; justify-content:space-between; align-items:center; margin:14px 0 12px; }.filter-actions span { color:var(--muted); font-size:12px; }.text-button { background:transparent; color:var(--blue); font-size:13px; font-weight:700; padding:5px; }
+    .resource-card { padding:16px; }.resource-card .row>div,.submission-title { min-width:0; }.resource-title,.submission-title { font-size:16px; font-weight:760; line-height:1.42; overflow-wrap:anywhere; word-break:break-word; }.resource-source { margin:11px 0 0; color:#536078; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }.resource-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:13px; color:#8992a5; font-size:12px; }.resource-actions { display:flex; gap:7px; }.mini-action { min-width:44px; min-height:44px; padding:0 10px; border:1px solid var(--line); border-radius:8px; color:#58637d; background:#fff; font-size:12px; transition:.18s; }.mini-action.saved { border-color:#b8c1ff; color:var(--blue); background:var(--soft); }.mini-action:active { transform:scale(.94); }
+    .form-card { background:#fff; border:1px solid #edf0f5; border-radius:14px; padding:16px; }.field { margin-bottom:15px; }.field label { display:block; font-size:13px; font-weight:700; color:#36415d; margin-bottom:7px; }.field input,.field select,.field textarea { width:100%; border:1px solid var(--line); border-radius:10px; outline:0; padding:11px; color:var(--ink); background:#fff; }.field textarea { min-height:90px; resize:vertical; line-height:1.5; }.field input:focus,.field select:focus,.field textarea:focus { border-color:#aab5ff; box-shadow:0 0 0 3px rgba(67,85,217,.1); }.file-field { position:relative; border:1px dashed #bfc8ea; border-radius:10px; background:#fafbff; padding:12px; }.file-field:focus-within { border-color:var(--blue); box-shadow:0 0 0 3px rgba(67,85,217,.14); }.file-field input { position:absolute; width:1px; height:1px; opacity:0; }.file-pick { display:flex; min-height:44px; justify-content:space-between; align-items:center; color:var(--blue); font-size:13px; font-weight:700; cursor:pointer; }.file-name { color:var(--muted); font-size:12px; margin:8px 0 0; overflow-wrap:anywhere; }.consent { display:flex; align-items:flex-start; gap:9px; color:#4b566e; font-size:12px; line-height:1.55; margin:4px 0 18px; }.consent input { margin:3px 0 0; accent-color:var(--blue); }.hint { color:var(--muted); font-size:12px; line-height:1.5; margin:5px 0 0; }.form-status { min-height:20px; margin:10px 0 0; color:#536078; font-size:12px; line-height:1.5; }.form-status.error { color:#a24b42; }.status { display:inline-flex; align-items:center; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; }.status.pending { color:#986c10; background:var(--gold); }
+    .data-note { margin-top:13px; padding:11px 12px; border-left:3px solid #98a6ef; background:#f7f8ff; color:#52607b; font-size:12px; line-height:1.55; }.course-grid { display:grid; gap:10px; }.course-card { text-align:left; width:100%; }.course-card .meta { line-height:1.55; }.toolbar { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:14px; }.toolbar .select { width:100%; }.offering { border-left:3px solid #c9d1ff; }.offering h3 { margin:0; font-size:15px; }.offering p { margin:7px 0 0; color:#52607b; font-size:13px; line-height:1.5; }.empty { padding:20px 2px; color:var(--muted); font-size:14px; line-height:1.6; }.source-link { color:var(--blue); font-size:13px; font-weight:700; text-decoration:none; }.course-count { color:var(--muted); font-size:12px; }.detail-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:15px; }.detail-list div { background:#f6f7fa; padding:9px; border-radius:8px; font-size:12px; color:#52607b; }.detail-list b { display:block; color:var(--ink); margin-top:4px; font-size:13px; }
+  </style>
+</head>
+<body>
+  <main class="phone"><template>
+    <section class="view active" id="home">
+      <span class="eyebrow">NJTECH · MATH & STATISTICS</span><h1>数统知库</h1><p class="sub">把选课焦虑，变成有依据的决定。</p>
+      <label class="search"><span class="icon">⌕</span><input id="course-search" placeholder="搜课程、教师，或直接提问" /></label>
+      <div class="quick"><button data-go="ask"><span>✦</span>AI 帮我选课</button><button data-detail="probability"><span>▦</span>课程评价</button><button data-detail="teacher"><span>◉</span>找老师</button></div>
+      <div class="section-title"><h2>热门课程</h2><button data-go="ask">问问 AI →</button></div>
+       <article class="card" data-detail="course" data-course-id="probability"><div class="row"><div><div class="course-name">概率论与数理统计</div><div class="meta">李明远 · 2025 秋</div></div><div class="score">★ 4.5</div></div><div class="tags"><span class="tag warm">作业适中</span><span class="tag good">给分友好</span><span class="tag">闭卷考试</span></div></article>
+       <article class="card" data-detail="course" data-course-id="analysis"><div class="row"><div><div class="course-name">数学分析 III</div><div class="meta">王晓琳 · 2025 秋</div></div><div class="score">★ 4.2</div></div><div class="tags"><span class="tag">难度较高</span><span class="tag good">讲解细致</span><span class="tag">每周习题</span></div></article>
+    </section>
+
+    <section class="view" id="detail"><div class="topline"><button class="back" data-go="home">‹</button><strong>课程详情</strong></div><div class="detail-head"><span class="eyebrow">数学与统计学院 · 专业基础课</span><h1 id="detail-title">概率论与数理统计</h1><p class="sub" id="detail-teacher">任课教师：李明远</p><div class="info"><span>3 学分</span><span>闭卷考试</span><span id="detail-term">2025 秋</span></div><div class="action-row"><button class="secondary" data-go="materials">查看课程资料</button><button class="primary" data-go="upload">投稿资料</button></div></div><h2>同学怎么说</h2><div class="rating"><div><small>课程难度</small><b>3.8</b><span class="bar"><i style="width:76%"></i></span></div><div><small>作业强度</small><b>3.1</b><span class="bar"><i style="width:62%"></i></span></div><div><small>给分体验</small><b>4.4</b><span class="bar"><i style="width:88%"></i></span></div><div><small>推荐程度</small><b>4.5</b><span class="bar"><i style="width:90%"></i></span></div></div><div class="section-title"><h2>匿名评价 · 38 条</h2><button id="open-review">写评价</button></div><article class="card review"><div class="row"><b>匿名同学</b><span class="tag good">有帮助 18</span></div><p>老师讲得很清楚，作业量可以接受。考试和课堂例题关联度高，认真跟完一学期收获很大。</p><div class="review-footer"><span>2025 秋 · 已修读</span><span>♡ 18</span></div></article><article class="card review"><div class="row"><b>匿名同学</b><span class="tag">有帮助 9</span></div><p>概率部分节奏偏快，建议提前复习随机变量和分布函数。给分比预期友好。</p><div class="review-footer"><span>2025 秋 · 已修读</span><span>♡ 9</span></div></article></section>
+
+    <section class="view" id="materials"><div class="topline"><button class="back" data-go="detail">‹</button><strong>课程资料</strong></div><span class="eyebrow">已授权 · 审核通过</span><h1 id="materials-title">概率论与数理统计</h1><p class="sub">仅展示当前课程已获授权且审核通过的学习资料。</p><div class="form-card" style="margin-top:18px"><div class="filters"><div><label class="filter-label" for="type-filter">资料类型</label><select class="select" id="type-filter"><option value="">全部类型</option><option>历年试卷</option><option>课堂课件</option><option>复习笔记</option></select></div><div><label class="filter-label" for="teacher-filter">任课教师</label><select class="select" id="teacher-filter"><option value="">全部教师</option><option>李明远</option><option>王晓琳</option></select></div><div><label class="filter-label" for="term-filter">学年学期</label><select class="select" id="term-filter"><option value="">全部学期</option><option>2025 秋</option><option>2024 秋</option><option>2023 秋</option></select></div></div><div class="filter-actions"><span id="result-count">3 份可用资料</span><button class="text-button" id="clear-filters">清空筛选</button></div></div><div id="material-list" style="margin-top:12px"></div></section>
+
+    <section class="view" id="upload"><div class="topline"><button class="back" data-go="detail">‹</button><strong>投稿资料</strong></div><span class="eyebrow">资料贡献</span><h1>提交学习资料</h1><p class="sub">通过审核后公开展示，并可进入课程知识库。</p><form class="form-card" id="upload-form" style="margin-top:18px"><div class="field"><label for="upload-course">课程</label><select id="upload-course" disabled aria-describedby="upload-course-hint"><option value="probability">概率论与数理统计</option><option value="analysis">数学分析 III</option></select><p class="hint" id="upload-course-hint">已关联当前课程详情。</p></div><div class="field"><label for="upload-teacher">关联教师</label><select id="upload-teacher" required><option value="">请选择教师</option><option>李明远</option><option>王晓琳</option></select></div><div class="filters"><div class="field"><label for="upload-term">年份/学期</label><select id="upload-term" required><option value="">请选择</option><option>2025 秋</option><option>2025 春</option><option>2024 秋</option></select></div><div class="field"><label for="upload-type">资料类型</label><select id="upload-type" required><option value="">请选择</option><option>历年试卷</option><option>课堂课件</option><option>复习笔记</option></select></div></div><div class="field"><label>资料文件</label><div class="file-field"><label class="file-pick" for="upload-file"><span>选择文件</span><span>＋</span></label><input id="upload-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip" required><p class="file-name" id="file-name">支持 PDF、Word、PPT、ZIP</p></div></div><div class="field"><label for="upload-source">来源说明</label><textarea id="upload-source" required placeholder="说明资料来自何处，以及已获得授权的依据"></textarea></div><div class="field"><label for="upload-license">授权类型</label><select id="upload-license" required><option value="">请选择授权类型</option><option>教师明确授权</option><option>学院公开发布</option><option>本人原创</option><option>其他已获授权来源</option></select><p class="hint">未经授权的试卷、课件及群文件不可投稿。</p></div><label class="consent"><input id="upload-consent" type="checkbox" required><span>我确认拥有或已取得该资料的传播授权，且资料不含个人隐私、考试保密内容或其他不宜公开的信息。</span></label><button class="primary" id="submit-upload" type="submit">提交审核</button><button class="text-button" id="simulate-upload-failure" type="button">模拟提交失败</button><p class="form-status" id="upload-status" role="status" aria-live="polite"></p></form></section>
+
+    <section class="view" id="ask"><div class="topline"><span class="eyebrow">RAG COURSE ASSISTANT</span></div><h1>选课问问 AI</h1><p class="sub">基于课程信息与同学评价回答，并标注来源。</p><div class="chat" style="margin-top:26px"><div class="bubble ai">想选什么课？例如：<br>“有没有给分友好、作业别太多的专业课？”</div><div class="bubble me">想找一门概率相关、老师讲得细的课</div><div class="bubble ai">可以优先看看 <b>概率论与数理统计</b>。现有评价中，“讲解清楚”和“给分友好”出现频率较高；课程为闭卷考核，作业强度评分为 3.1/5。<span class="source">来源：概率论与数理统计 · 38 条评价</span></div></div><div class="askbox"><input id="ask-input" placeholder="输入课程问题" /><button class="send" id="send">发送</button></div></section>
+
+    <section class="view" id="teacher"><div class="topline"><button class="back" data-go="home">‹</button><strong>教师信息</strong></div><div class="card teacher"><div class="avatar">李</div><div><h3>李明远</h3><p>数学与统计学院 · 副教授</p><div class="tags"><span class="tag good">讲解清晰</span><span class="tag">答疑耐心</span></div></div></div><h2>授课体验</h2><article class="card review"><b>匿名同学</b><p>板书逻辑清楚，会把重点题型归纳出来。课堂互动不多，但提问都会认真回答。</p><div class="review-footer"><span>概率论与数理统计</span><span>♡ 22</span></div></article><h2>开设课程</h2><article class="card" data-detail="probability"><div class="course-name">概率论与数理统计</div><div class="meta">2025 秋 · 4.5 分</div></article></section>
+
+    <section class="view" id="profile"><div class="profile"><div class="avatar">杜</div><h2>微信用户</h2><p>数统学院 · 已加入知库</p></div><div class="menu"><button><span>我的评价</span><span>›</span></button><button id="show-favorites"><span>我的收藏</span><span id="favorite-total">0</span></button><button data-go="upload"><span>投稿与纠错</span><span>›</span></button><button id="login"><span>微信登录状态</span><span>已登录</span></button></div><div class="section-title"><h2>我的投稿</h2><button data-go="upload">继续投稿</button></div><div id="submission-list"><p class="sub">还没有投稿资料，贡献一份已授权资料吧。</p></div></section>
+    <nav class="nav"><button class="active" data-go="home"><span>⌂</span>首页</button><button data-go="ask"><span>✦</span>问答</button><button data-go="profile"><span>◉</span>我的</button></nav>
+  </template></main>
+  <div class="toast" id="toast">提示</div>
+  <script type="text/plain">
+    const views=[...document.querySelectorAll('.view')], nav=[...document.querySelectorAll('.nav button')];
+    const courses={
+      probability:{id:'probability',title:'概率论与数理统计',teacher:'李明远',term:'2025 秋'},
+      analysis:{id:'analysis',title:'数学分析 III',teacher:'王晓琳',term:'2025 秋'}
+    };
+    let currentCourseId='probability';
+    let uploadSubmitting=false;
+    const materials=[
+      {id:1,courseId:'probability',title:'2024 秋期末试卷及题型回顾',type:'历年试卷',teacher:'李明远',term:'2024 秋',source:'来源：教师授权整理，含题型回顾说明。',downloads:86,favorites:24,status:'审核通过'},
+      {id:2,courseId:'probability',title:'随机变量与常用分布课堂课件',type:'课堂课件',teacher:'李明远',term:'2025 秋',source:'来源：任课教师公开课件，已获授权收录。',downloads:132,favorites:47,status:'审核通过'},
+      {id:3,courseId:'probability',title:'概率论期末复习笔记',type:'复习笔记',teacher:'李明远',term:'2023 秋',source:'来源：学生原创笔记，经作者授权发布。',downloads:61,favorites:18,status:'审核通过'},
+      {id:4,courseId:'analysis',title:'数学分析 III 极限与连续复习笔记',type:'复习笔记',teacher:'王晓琳',term:'2025 秋',source:'来源：学生原创笔记，经作者授权发布。',downloads:42,favorites:15,status:'审核通过'},
+      {id:5,courseId:'probability',title:'章节习题整理',type:'复习笔记',teacher:'李明远',term:'2025 秋',source:'来源：待确认。',downloads:0,favorites:0,status:'待审核'}
+    ];
+    const submissions=[];
+    const savedMaterials=new Set();
+    function updateCourseContext(){
+      const course=courses[currentCourseId];
+      document.getElementById('detail-title').textContent=course.title;
+      document.getElementById('detail-teacher').textContent=`任课教师：${course.teacher}`;
+      document.getElementById('detail-term').textContent=course.term;
+      document.getElementById('materials-title').textContent=course.title;
+      document.getElementById('upload-course').value=course.id;
+      document.getElementById('upload-teacher').value=course.teacher;
+    }
+    function go(id){ views.forEach(v=>v.classList.toggle('active',v.id===id)); nav.forEach(b=>b.classList.toggle('active',b.dataset.go===id)); window.scrollTo(0,0); if(id==='detail'||id==='materials'||id==='upload') updateCourseContext(); if(id==='materials') renderMaterials(); if(id==='profile') renderSubmissions(); }
+    document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
+    document.querySelectorAll('[data-detail]').forEach(el=>el.addEventListener('click',()=>{ if(el.dataset.detail==='teacher') go('teacher'); else { currentCourseId=el.dataset.courseId; go('detail'); } }));
+    document.getElementById('course-search').addEventListener('keydown',e=>{if(e.key==='Enter') go('ask')});
+    const modal=document.getElementById('review-modal'),toast=document.getElementById('toast');
+    document.getElementById('open-review').onclick=()=>modal.classList.add('show'); document.getElementById('close-review').onclick=()=>modal.classList.remove('show');
+    document.getElementById('submit-review').onclick=()=>{ modal.classList.remove('show'); document.getElementById('review-text').value=''; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2200); };
+    document.getElementById('send').onclick=()=>{ const input=document.getElementById('ask-input'); if(!input.value.trim()) return; const bubble=document.createElement('div'); bubble.className='bubble me'; bubble.textContent=input.value; document.querySelector('.chat').append(bubble); input.value=''; setTimeout(()=>{const reply=document.createElement('div');reply.className='bubble ai';reply.innerHTML='我会结合课程资料和同学评价继续检索。这一版原型先展示了可溯源回答的交互形态。<span class="source">来源：课程知识库</span>';document.querySelector('.chat').append(reply);},350); };
+    function showToast(message){ toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2200); }
+    function renderMaterials(){
+      const type=document.getElementById('type-filter').value;
+      const teacher=document.getElementById('teacher-filter').value;
+      const term=document.getElementById('term-filter').value;
+      const visible=materials.filter(item=>item.courseId===currentCourseId&&item.status==='审核通过'&&(!type||item.type===type)&&(!teacher||item.teacher===teacher)&&(!term||item.term===term));
+      document.getElementById('result-count').textContent=`${visible.length} 份可用资料`;
+      document.getElementById('material-list').innerHTML=visible.length ? visible.map(item=>`<article class="card resource-card"><div class="row"><div><div class="resource-title">${item.title}</div><div class="meta">${item.type} · ${item.teacher} · ${item.term}</div></div><span class="status approved">已审核</span></div><p class="resource-source">${item.source}</p><div class="resource-footer"><span>⇩ ${item.downloads} · ♡ ${item.favorites}</span><div class="resource-actions"><button class="mini-action ${savedMaterials.has(item.id)?'saved':''}" data-save="${item.id}">${savedMaterials.has(item.id)?'已收藏':'收藏'}</button><button class="mini-action" data-download="${item.id}">下载</button></div></div></article>`).join('') : '<p class="sub" style="padding:24px 2px">没有符合条件的已审核资料，试试清空筛选。</p>';
+      document.querySelectorAll('[data-save]').forEach(button=>button.onclick=()=>{
+        const id=Number(button.dataset.save); const item=materials.find(material=>material.id===id);
+        if(savedMaterials.has(id)){ savedMaterials.delete(id); item.favorites--; showToast('已取消收藏'); } else { savedMaterials.add(id); item.favorites++; showToast('已收藏到个人中心'); }
+        document.getElementById('favorite-total').textContent=savedMaterials.size; renderMaterials();
+      });
+      document.querySelectorAll('[data-download]').forEach(button=>button.onclick=()=>{
+        const item=materials.find(material=>material.id===Number(button.dataset.download)); item.downloads++; showToast(`已记录《${item.title}》的下载意向（静态原型未生成文件）`); renderMaterials();
+      });
+    }
+    ['type-filter','teacher-filter','term-filter'].forEach(id=>document.getElementById(id).addEventListener('change',renderMaterials));
+    document.getElementById('clear-filters').onclick=()=>{ ['type-filter','teacher-filter','term-filter'].forEach(id=>document.getElementById(id).value=''); renderMaterials(); };
+    document.getElementById('upload-file').addEventListener('change',event=>{ const file=event.target.files[0]; document.getElementById('file-name').textContent=file ? file.name : '支持 PDF、Word、PPT、ZIP'; });
+    function setUploadState(message,isError=false){ const status=document.getElementById('upload-status'); status.textContent=message; status.classList.toggle('error',isError); }
+    function setUploadSubmitting(isSubmitting){ uploadSubmitting=isSubmitting; const submit=document.getElementById('submit-upload'); submit.disabled=isSubmitting; submit.textContent=isSubmitting?'模拟提交中...':'提交审核'; }
+    document.getElementById('simulate-upload-failure').onclick=()=>{
+      if(uploadSubmitting) return;
+      setUploadState('模拟提交失败：网络不可用。已保留当前填写内容，请稍后重试。',true);
+    };
+    document.getElementById('upload-form').addEventListener('submit',event=>{
+      event.preventDefault();
+      const form=event.currentTarget;
+      if(uploadSubmitting) return;
+      if(!form.checkValidity()){ form.reportValidity(); return; }
+      setUploadSubmitting(true); setUploadState('正在模拟提交投稿，请勿重复操作。');
+      setTimeout(()=>{
+      const submission={
+        title:document.getElementById('upload-file').files[0].name,
+        courseId:document.getElementById('upload-course').value,
+        course:courses[document.getElementById('upload-course').value].title,
+        teacher:document.getElementById('upload-teacher').value,
+        term:document.getElementById('upload-term').value,
+        type:document.getElementById('upload-type').value,
+        status:'待审核'
+      };
+      submissions.unshift(submission); form.reset(); document.getElementById('file-name').textContent='支持 PDF、Word、PPT、ZIP'; setUploadSubmitting(false); setUploadState(''); go('profile'); showToast('资料已提交，等待审核');
+      },650);
+    });
+    function renderSubmissions(){
+      const list=document.getElementById('submission-list');
+      list.innerHTML=submissions.length ? submissions.map(item=>`<article class="card"><div class="row"><div><div class="submission-title">${item.title}</div><div class="meta">${item.course} · ${item.teacher} · ${item.term}</div></div><span class="status pending">${item.status}</span></div><div class="tags"><span class="tag">${item.type}</span><span class="tag warm">审核完成前不会公开</span></div></article>`).join('') : '<p class="sub">还没有投稿资料，贡献一份已授权资料吧。</p>';
+    }
+    document.getElementById('show-favorites').onclick=()=>showToast(savedMaterials.size ? `已收藏 ${savedMaterials.size} 份资料` : '暂未收藏资料');
+    updateCourseContext(); renderMaterials();
+  </script>
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
