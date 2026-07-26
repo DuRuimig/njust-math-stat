@@ -13,6 +13,8 @@ const teacherDirectoryKey = (teacher) => {
   return `directory:${crypto.createHash('sha256').update(sourceKey).digest('hex')}`;
 };
 
+if (process.env.DB_DRIVER === 'mysql') throw new Error('SQLite seed refuses DB_DRIVER=mysql; use npm run db:mysql:seed with MYSQL_EXECUTE=1');
+
 const db = new Database(dbPath);
 db.pragma('foreign_keys = ON');
 const insert = db.prepare(`

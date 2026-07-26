@@ -3,7 +3,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const request = require('supertest');
-const { openDatabase } = require('../src/db');
+const { sqliteDatabase } = require('../src/db');
 const { createApp } = require('../src/app');
 const courseLibrary = require('../../../miniprogram/data/course-library');
 
@@ -20,8 +20,8 @@ const teacherDirectoryKey = (teacher) => {
 
 beforeAll(() => {
   const databasePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'njust-api-')), 'test.sqlite');
-  db = openDatabase(databasePath);
-  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql']) {
+  db = sqliteDatabase(databasePath);
+  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql']) {
     db.exec(fs.readFileSync(path.resolve(__dirname, `../../../database/migrations/${migration}`), 'utf8'));
   }
   db.prepare('INSERT INTO courses (id, stable_key, code, normalized_name, name) VALUES (?, ?, ?, ?, ?)')
@@ -77,6 +77,13 @@ describe('v1 API 契约', () => {
       avatarUrl: null,
       privateBinding: { name: null, studentNumber: null },
     });
+  });
+
+  it('生产环境禁用开发测试会话', async () => {
+    const productionApp = createApp({ db, env: 'production' });
+    const response = await request(productionApp).post(`${v1}/dev/sessions`).send({ accountId: 'production-attempt' });
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('NOT_FOUND');
   });
 
   it('首次身份绑定要求认证并在成功后返回当前 profile', async () => {
@@ -153,6 +160,8 @@ describe('v1 API 契约', () => {
     expect(created.status).toBe(201);
     expect(created.body.comment.content).toHaveLength(300);
     expectAnonymous(created.body.comment);
+    expect(() => db.prepare('INSERT INTO course_comments (id, user_id, course_id, body) VALUES (?, ?, ?, ?)')
+      .run(crypto.randomUUID(), db.prepare('SELECT id FROM users WHERE account_id = ?').get('student-c').id, db.prepare('SELECT id FROM courses WHERE stable_key = ?').get(courseKey).id, 'a'.repeat(301))).toThrow();
 
     const cancelled = await request(app).delete(coursePath('likes')).set(auth(token));
     expect(cancelled.status).toBe(200);

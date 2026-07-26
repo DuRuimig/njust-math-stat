@@ -1,13 +1,32 @@
 var DEFAULT_BASE_URL = "http://127.0.0.1:2001"
+var API_MODE_LOCAL = "local"
+var API_MODE_CLOUD = "cloud"
 var API_PREFIX = "/api/v1"
 var DEV_SESSION_PATH = API_PREFIX + "/dev/sessions"
 var PROFILE_BINDING_PATH = API_PREFIX + "/profile/binding"
 var REQUEST_TIMEOUT = 8000
 var SESSION_STORAGE_KEY = "njust_math_stat_development_session"
 
-function baseUrl() {
+function appConfig() {
   var app = typeof getApp === "function" ? getApp() : null
-  return (app && app.globalData && app.globalData.apiBaseUrl) || DEFAULT_BASE_URL
+  return (app && app.globalData) || {}
+}
+
+function apiMode() {
+  // 仅接受明确的 cloud 值；任何缺省或非法值均安全地保持本地模式。
+  return appConfig().apiMode === API_MODE_CLOUD ? API_MODE_CLOUD : API_MODE_LOCAL
+}
+
+function baseUrl() {
+  return appConfig().apiBaseUrl || DEFAULT_BASE_URL
+}
+
+function cloudConfig() {
+  var config = appConfig()
+  return {
+    environmentId: config.cloudEnvironmentId || "",
+    service: config.cloudContainerService || ""
+  }
 }
 
 function apiError(message, code) {
@@ -30,26 +49,68 @@ function hasSession() {
   return Boolean(current && current.token)
 }
 
-function request(options) {
+function requestHeaders(options) {
+  var headers = { "content-type": "application/json" }
+  var suppliedHeaders = options.header || {}
+  Object.keys(suppliedHeaders).forEach(function (key) { headers[key] = suppliedHeaders[key] })
+  var current = session()
+  if (options.auth !== false && current && current.token) headers.Authorization = "Bearer " + current.token
+  return headers
+}
+
+function resolveResponse(response, resolve, reject) {
+  var data = response.data || {}
+  if (response.statusCode >= 200 && response.statusCode < 300) return resolve(data)
+  var code = response.statusCode === 401 ? "NO_SESSION" : response.statusCode === 409 ? "BINDING_CONFLICT" : "HTTP_" + response.statusCode
+  reject(apiError((data.error && data.error.message) || data.error || "服务暂不可用", code))
+}
+
+function requestLocal(options) {
   return new Promise(function (resolve, reject) {
-    var headers = { "content-type": "application/json" }
-    var current = session()
-    if (options.auth !== false && current && current.token) headers.Authorization = "Bearer " + current.token
     wx.request({
       url: baseUrl() + options.path,
       method: options.method || "GET",
       data: options.data || {},
       timeout: REQUEST_TIMEOUT,
-      header: headers,
-      success: function (response) {
-        var data = response.data || {}
-        if (response.statusCode >= 200 && response.statusCode < 300) return resolve(data)
-        var code = response.statusCode === 401 ? "NO_SESSION" : response.statusCode === 409 ? "BINDING_CONFLICT" : "HTTP_" + response.statusCode
-        reject(apiError((data.error && data.error.message) || data.error || "服务暂不可用", code))
-      },
+      header: requestHeaders(options),
+      success: function (response) { resolveResponse(response, resolve, reject) },
       fail: function () { reject(apiError("服务未连接，请检查本地开发配置", "NETWORK_ERROR")) }
     })
   })
+}
+
+function requestCloud(options) {
+  return new Promise(function (resolve, reject) {
+    var cloud = typeof wx !== "undefined" && wx.cloud
+    var config = cloudConfig()
+    if (!cloud || typeof cloud.callContainer !== "function") {
+      reject(apiError("当前运行环境不支持云托管调用，请使用支持云能力的微信基础库", "CLOUD_CAPABILITY_UNAVAILABLE"))
+      return
+    }
+    if (!config.environmentId || !config.service) {
+      reject(apiError("云托管环境或服务名未配置", "CLOUD_CONFIG_INVALID"))
+      return
+    }
+
+    var method = (options.method || "GET").toUpperCase()
+    // 微信公开类型将 method 定义为 string，未枚举或排除 DELETE；按原方法透传。
+    // 因而取消点赞仍是 DELETE，绝不降级为 POST 以避免语义变化。
+    cloud.callContainer({
+      config: { env: config.environmentId },
+      service: config.service,
+      path: options.path,
+      method: method,
+      data: options.data || {},
+      header: requestHeaders(options),
+      timeout: REQUEST_TIMEOUT,
+      success: function (response) { resolveResponse(response, resolve, reject) },
+      fail: function () { reject(apiError("云托管服务未连接，请检查云环境、服务名和发布配置", "NETWORK_ERROR")) }
+    })
+  })
+}
+
+function request(options) {
+  return apiMode() === API_MODE_CLOUD ? requestCloud(options) : requestLocal(options)
 }
 
 function createDevelopmentSession() {
@@ -132,6 +193,8 @@ function postComment(kind, id, content) {
 
 module.exports = {
   DEFAULT_BASE_URL: DEFAULT_BASE_URL,
+  API_MODE_LOCAL: API_MODE_LOCAL,
+  API_MODE_CLOUD: API_MODE_CLOUD,
   API_PREFIX: API_PREFIX,
   DEV_SESSION_PATH: DEV_SESSION_PATH,
   PROFILE_BINDING_PATH: PROFILE_BINDING_PATH,

@@ -26,7 +26,12 @@
 
 - 课程仅由 `miniprogram/data/course-library.js` 的课程定义导入。
 - 教师仅由 `work/teacher-directory/teacher-directory.json` 的目录条目导入。它们是独立互动目标，后端没有课程与教师的关联表，不会把目录条目推断为本科任课事实。
-- 数据库以 `(user_id, course_id)` 和 `(user_id, teacher_id)` 主键保证每个账号对相同目标只能点赞一次；不支持取消点赞。重复请求返回稳定的 `liked: true`、`alreadyLiked: true` 与不重复的点赞数。
-- 两类评论均在插入前验证点赞；评论响应永不包含用户、账号、姓名或学号，只以 `anonymous: true` 标识匿名状态。
+- 数据库以 `(user_id, course_id)` 和 `(user_id, teacher_id)` 主键保证每个账号对相同目标只能点赞一次；支持幂等取消点赞。重复点赞返回稳定的 `liked: true`、`alreadyLiked: true` 与不重复的点赞数。
+- 两类评论均在插入前验证点赞，课程与教师评论均限制为 1 至 300 个字符；评论响应永不包含用户、账号、姓名或学号，只以 `anonymous: true` 标识匿名状态。
 - HTTP 日志不序列化请求头或请求体，因此不记录 token、姓名、学号或评论原文。
 - 当前版本不提供管理员个人联系方式；身份资料修改入口待接入，后端没有相关的联系或认证 API。
+- MySQL 生产 schema 包含 `roles`、`user_roles` 与 `admin_audit_logs`，仅作为后续管理员能力的数据准备：当前不导入角色、不授予任何管理员角色、也没有管理员 API。
+
+## 数据库运行安全
+
+本地开发与测试使用 SQLite。生产环境要求 `NODE_ENV=production` 与 `DB_DRIVER=mysql`；应用不会自动执行 MySQL migration 或 seed。MySQL migration、seed 均需显式命令以及 `MYSQL_EXECUTE=1`，未满足开关时会在任何数据库连接前拒绝执行。真实微信登录、生产管理员鉴权和管理员 API 均未配置。

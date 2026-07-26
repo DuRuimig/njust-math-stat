@@ -8,8 +8,10 @@
     "start": "node src/server.js",
     "db:migrate": "node ../../utils/migrate.js",
     "db:seed": "node ../../utils/seed-courses.js",
+    "db:mysql:migrate": "node ../../utils/mysql-migrate.js",
+    "db:mysql:seed": "node ../../utils/mysql-seed-courses.js",
     "test": "vitest run --globals",
-    "check": "node --check src/app.js && node --check src/server.js && node --check ../../utils/migrate.js && node --check ../../utils/seed-courses.js"
+    "check": "node --check src/app.js && node --check src/db.js && node --check src/repository.js && node --check src/server.js && node --check ../../utils/migrate.js && node --check ../../utils/seed-courses.js && node --check ../../utils/mysql-migrate.js && node --check ../../utils/mysql-seed-courses.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
@@ -17,6 +19,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
+    "mysql2": "^3.11.5",
     "pino": "^9.6.0",
     "pino-http": "^10.3.0",
     "zod": "^3.24.1"

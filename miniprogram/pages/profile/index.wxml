@@ -9,9 +9,10 @@
     </view>
   </view>
 
-  <view class="service-notice"><text>{{serviceStatus}}</text><text>开发默认地址为 http://127.0.0.1:2001，不能用于真机访问。</text></view>
+  <view class="service-notice"><text>{{serviceStatus}}</text><text wx:if="{{isCloudMode}}">当前为云托管体验版，真实微信登录接入前不开放身份与互动功能。</text><text wx:else>开发默认地址为 http://127.0.0.1:2001，不能用于真机访问。</text></view>
 
-  <view wx:if="{{!isLoggedIn}}" class="development-login surface"><text class="development-login-title">开发测试身份</text><text>仅供本地开发会话验证，非微信登录，不代表真实用户认证。</text><button class="primary-button development-login-button" loading="{{isCreatingSession}}" bindtap="startDevelopmentSession">本地测试进入</button></view>
+  <view wx:if="{{!isLoggedIn && !isCloudMode}}" class="development-login surface"><text class="development-login-title">开发测试身份</text><text>仅供本地开发会话验证，非微信登录，不代表真实用户认证。</text><button class="primary-button development-login-button" loading="{{isCreatingSession}}" bindtap="startDevelopmentSession">本地测试进入</button></view>
+  <view wx:if="{{!isLoggedIn && isCloudMode}}" class="development-login surface"><text class="development-login-title">体验版说明</text><text>课程与教师目录可正常浏览；身份认证、点赞与匿名评论将在真实微信登录接入后开放。</text></view>
 
   <view class="section-head"><text class="section-title">身份资料</text><button wx:if="{{isLoggedIn}}" class="text-button" bindtap="toggleProfileEditor">{{isEditingProfile ? '收起' : '编辑昵称头像'}}</button></view>
   <view class="profile-card surface">

@@ -6,6 +6,8 @@ const Database = require(require.resolve('better-sqlite3', { paths: [path.join(r
 const dbPath = process.env.DATABASE_PATH || path.join(root, 'database/runtime/njust-math-stat.sqlite');
 const migrationDir = path.join(root, 'database/migrations');
 
+if (process.env.DB_DRIVER === 'mysql') throw new Error('SQLite migration refuses DB_DRIVER=mysql; use npm run db:mysql:migrate with MYSQL_EXECUTE=1');
+
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const db = new Database(dbPath);
 db.pragma('foreign_keys = ON');

@@ -17,16 +17,32 @@ Page({
     hasStudentId: false,
     isLoggedIn: false,
     isDevelopmentSession: false,
+    isCloudMode: false,
     isCreatingSession: false,
     isBindingProfile: false,
     isEditingProfile: false
   },
 
   onShow: function () {
+    var app = typeof getApp === "function" ? getApp() : null
+    this.setData({ isCloudMode: Boolean(app && app.globalData && app.globalData.apiMode === api.API_MODE_CLOUD) })
     this.loadProfile()
   },
 
   loadProfile: function () {
+    if (this.data.isCloudMode) {
+      this.setData({
+        isLoggedIn: false,
+        isDevelopmentSession: false,
+        loginStatus: "登录服务待配置",
+        serviceStatus: "体验版暂未开放身份与互动功能",
+        studentName: "",
+        studentId: "",
+        hasStudentName: false,
+        hasStudentId: false
+      })
+      return
+    }
     if (!api.hasSession()) {
       this.setData({
         isLoggedIn: false,
