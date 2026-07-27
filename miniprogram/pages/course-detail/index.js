@@ -56,7 +56,9 @@ Page({
     this.setData({
       course: course,
       directoryTeachers: directoryTeachers,
-      keyResolution: resolution.status
+      keyResolution: resolution.status,
+      // Interaction availability follows the saved session, not the first feedback fetch.
+      isLoggedIn: api.hasSession()
     })
     wx.setNavigationBarTitle({ title: course.name })
     this.refreshFeedback()
@@ -64,6 +66,8 @@ Page({
 
   onShow: function () {
     if (!this.data.course) return
+    var isLoggedIn = api.hasSession()
+    if (this.data.isLoggedIn !== isLoggedIn) this.setData({ isLoggedIn: isLoggedIn })
     var sessionChanged = this.feedbackSessionRevision !== api.getSessionRevision()
     var courseNeedsRetry = !this.data.feedbackConnected && !this.courseFeedbackLoading
     var teachersNeedRetry = this.data.directoryTeachers.length > 0 && !this.data.teacherFeedbackConnected && !this.teacherFeedbackLoading
@@ -138,7 +142,8 @@ Page({
       page.courseFeedbackLoading = false
       if (page.handleSessionInvalid(error)) return
       page.setData({
-        feedbackConnected: false
+        feedbackConnected: false,
+        isLoggedIn: api.hasSession()
       })
     })
   },

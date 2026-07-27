@@ -837,6 +837,64 @@ describe('教师目录页会话状态', () => {
 });
 
 describe('课程详情会话失效状态', () => {
+  it('首次反馈摘要失败时，已保存的测试身份仍可完成课程点赞、教师点赞和评论', async () => {
+    const pending = [];
+    const runtime = installCloudRuntime((options) => { pending.push(options); }, {
+      initialSession: { token: 'test-identity-session', mode: 'test-identity', expiresAt: Date.now() + 60_000 },
+      authMode: 'test-identity',
+    });
+    loadApi();
+    const page = createPage(loadCourseDetailPage());
+    global.wx.setNavigationBarTitle = () => {};
+
+    const course = require('../../../miniprogram/utils/library').getCourses()[0];
+    page.onLoad({ key: encodeURIComponent(course.key) });
+    expect(pending).toHaveLength(2);
+    pending[0].fail({ errMsg: 'cloud.callContainer:fail service unavailable' });
+    pending[1].fail({ errMsg: 'cloud.callContainer:fail service unavailable' });
+    await flushPromises();
+    await flushPromises();
+
+    expect(page.data).toMatchObject({
+      isLoggedIn: true,
+      feedbackConnected: false,
+      teacherFeedbackConnected: false,
+    });
+
+    page.likeCourse();
+    expect(pending).toHaveLength(3);
+    pending[2].success({ statusCode: 201, data: { liked: true, likeCount: 1 } });
+    await flushPromises();
+    await flushPromises();
+
+    const teacher = page.data.directoryTeachers[0];
+    page.likeTeacher({ currentTarget: { dataset: { id: teacher.directoryId } } });
+    expect(pending).toHaveLength(4);
+    pending[3].success({ statusCode: 201, data: { liked: true, likeCount: 1 } });
+    await flushPromises();
+    await flushPromises();
+
+    page.onCommentInput({ detail: { value: '首次摘要失败后仍可评论' } });
+    page.submitComment();
+    expect(pending).toHaveLength(5);
+    pending[4].success({ statusCode: 201, data: { comment: { content: '首次摘要失败后仍可评论', createdAt: '2026-07-27T12:00:00Z' } } });
+    await flushPromises();
+    await flushPromises();
+
+    expect(page.data).toMatchObject({
+      isLoggedIn: true,
+      hasLiked: true,
+      likeCount: 1,
+      isLiking: false,
+      isSubmittingComment: false,
+      feedbackConnected: true,
+      teacherFeedbackConnected: true,
+    });
+    expect(page.data.directoryTeachers.find((item) => item.directoryId === teacher.directoryId)).toMatchObject({ hasLiked: true, likeCount: 1, isLiking: false });
+    expect(page.data.comments[0]).toMatchObject({ content: '首次摘要失败后仍可评论' });
+    expect(runtime.toasts.filter((toast) => toast.icon === 'success')).toHaveLength(3);
+  });
+
   it('课程反馈摘要加载失败后，已登录用户仍可直接点赞并恢复互动状态', async () => {
     const pending = [];
     const runtime = installCloudRuntime((options) => { pending.push(options); });
