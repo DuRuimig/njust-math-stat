@@ -90,8 +90,15 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   function entityByKey(table, param, label) {
     const type = table === 'courses' ? 'course' : 'teacher';
     return asyncHandler(async (req, res, next) => {
-      const entity = await repository.findTarget(type, decodeTargetKey(req.params[param]));
-      if (!entity) return apiError(res, 404, 'TARGET_NOT_FOUND', `${label}不存在`);
+      const receivedKey = String(req.params[param] || '');
+      const decodedKey = decodeTargetKey(receivedKey);
+      const entity = await repository.findTarget(type, decodedKey);
+      if (!entity) {
+        // This is emitted only for a public course or teacher key mismatch.
+        // Request headers, bodies, and the authenticated user remain excluded from logs.
+        logger.warn({ targetType: type, method: req.method, receivedKey, decodedKey }, '[course-target-not-found]');
+        return apiError(res, 404, 'TARGET_NOT_FOUND', `${label}不存在`);
+      }
       req.target = entity;
       next();
     });

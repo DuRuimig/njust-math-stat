@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const pino = require('pino');
 const request = require('supertest');
 const { sqliteDatabase } = require('../src/db');
 const { createApp, tokenHash } = require('../src/app');
@@ -422,6 +423,27 @@ describe('v1 API 契约', () => {
     const liked = await request(app).post(`${doubleEncodedPath}/likes`).set(auth(token));
     expect(liked.status).toBe(201);
     expect(liked.body).toMatchObject({ liked: true, alreadyLiked: false });
+  });
+
+  it('找不到课程时记录收到的课程 key，便于排查云端路由差异', async () => {
+    const warnings = [];
+    const logger = pino({
+      hooks: {
+        logMethod(args, method, level) {
+          if (level === 40) warnings.push({ payload: args[0], message: args[1] });
+          return method.apply(this, args);
+        },
+      },
+    }, { write() {} });
+    const diagnosticApp = createApp({ db, env: 'test', logger });
+
+    const response = await request(diagnosticApp).post(`${v1}/courses/missing-course/likes`).set(auth(await session('student-missing-course')));
+
+    expect(response.status).toBe(404);
+    expect(warnings).toContainEqual({
+      payload: { targetType: 'course', method: 'POST', receivedKey: 'missing-course', decodedKey: 'missing-course' },
+      message: '[course-target-not-found]',
+    });
   });
 
   it('教师支持点赞、幂等取消、重新点赞，并同步摘要 likedByMe', async () => {
