@@ -54,9 +54,12 @@ function decodeTargetKey(value) {
   const key = String(value || '');
   try {
     // Some Cloud Run gateways forward an already-escaped dynamic path segment.
-    return decodeURIComponent(key);
+    const decoded = decodeURIComponent(key);
+    // Some device JavaScript runtimes preserve full-width punctuation in course names.
+    // Course seed keys are NFKC-normalized with whitespace removed.
+    return decoded.normalize('NFKC').replace(/\s+/g, '');
   } catch (_error) {
-    return key;
+    return key.normalize('NFKC').replace(/\s+/g, '');
   }
 }
 

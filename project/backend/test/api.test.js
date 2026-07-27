@@ -425,6 +425,19 @@ describe('v1 API 契约', () => {
     expect(liked.body).toMatchObject({ liked: true, alreadyLiked: false });
   });
 
+  it('接受真机传来的全角课程括号', async () => {
+    const token = await session('student-full-width-course-key');
+    const deviceCourseKey = '11129201:数学分析（I）';
+    const devicePath = `${v1}/courses/${encodeURIComponent(deviceCourseKey)}`;
+
+    const feedback = await request(app).get(`${devicePath}/feedback`).set(auth(token));
+    expect(feedback.status).toBe(200);
+
+    const liked = await request(app).post(`${devicePath}/likes`).set(auth(token));
+    expect(liked.status).toBe(201);
+    expect(liked.body).toMatchObject({ liked: true, alreadyLiked: false });
+  });
+
   it('找不到课程时记录收到的课程 key，便于排查云端路由差异', async () => {
     const warnings = [];
     const logger = pino({
