@@ -25,4 +25,4 @@ ENV DATABASE_PATH=/app/database/runtime/njust-math-stat.sqlite
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["npm", "start"]
+CMD ["sh", "-c", "if [ \"${MYSQL_BOOTSTRAP_ON_START:-0}\" = \"1\" ]; then MYSQL_EXECUTE=1 npm run db:mysql:migrate && MYSQL_EXECUTE=1 npm run db:mysql:seed; fi; exec npm start"]

@@ -34,6 +34,8 @@ MYSQL_EXECUTE=1 npm run db:mysql:seed
 
 MySQL seed 只导入课程定义和教师目录，不导入本地 SQLite 中的 users、sessions、likes、comments 或 profile 变更申请。迁移包含管理员准备表 `roles`、`user_roles`、`admin_audit_logs`，但不预置角色、不分配管理员、也不开放管理员 API。
 
+微信云托管没有容器终端时，可临时配置 `MYSQL_BOOTSTRAP_ON_START=1` 并保持 `DB_DRIVER=sqlite` 发布一次。该镜像启动时会显式运行上述迁移和 seed，成功后继续启动 SQLite 服务；确认数据已创建后必须删除此开关，再单独设置 `DB_DRIVER=mysql` 发布。开关为 `0` 或不存在时，应用不会连接 MySQL 或执行迁移。
+
 ## 云托管镜像构建
 
 构建上下文必须是仓库根目录，Dockerfile 位于仓库根目录：
