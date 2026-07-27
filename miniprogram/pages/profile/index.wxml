@@ -4,37 +4,35 @@
     <view wx:else class="identity-mark">南理数统</view>
     <view class="identity-copy-wrap">
       <text class="eyebrow">个人中心</text>
-      <view class="identity-title-line"><text class="identity-title">{{isLoggedIn ? (nickname || '开发测试用户') : '未登录'}}</text><text class="status-chip">{{loginStatus}}</text></view>
-      <text class="identity-copy">真实微信登录待配置，不会在此页面调用伪微信认证。</text>
+       <view class="identity-title-line"><text class="identity-title">{{isLoggedIn ? (nickname || (isTestIdentityMode ? '测试用户' : '微信用户')) : '未登录'}}</text><text class="status-chip">{{loginStatus}}</text></view>
+       <text class="identity-copy">{{isTestIdentityMode ? '测试身份仅用于体验，不等同于学校统一身份认证或微信认证。' : '使用微信官方登录凭据完成服务端认证，不接受客户端提交身份标识。'}}</text>
     </view>
   </view>
 
-  <view class="service-notice"><text>{{serviceStatus}}</text><text wx:if="{{isCloudMode}}">当前为云托管体验版，真实微信登录接入前不开放身份与互动功能。</text><text wx:else>开发默认地址为 http://127.0.0.1:2001，不能用于真机访问。</text></view>
+   <view class="service-notice"><text>{{serviceStatus}}</text><text wx:if="{{isCloudMode}}">当前通过云托管服务完成认证和业务请求。</text><text wx:else>开发默认地址为 http://127.0.0.1:2001，不能用于真机访问。</text></view>
 
-  <view wx:if="{{!isLoggedIn && !isCloudMode}}" class="development-login surface"><text class="development-login-title">开发测试身份</text><text>仅供本地开发会话验证，非微信登录，不代表真实用户认证。</text><button class="primary-button development-login-button" loading="{{isCreatingSession}}" bindtap="startDevelopmentSession">本地测试进入</button></view>
-  <view wx:if="{{!isLoggedIn && isCloudMode}}" class="development-login surface"><text class="development-login-title">体验版说明</text><text>课程与教师目录可正常浏览；身份认证、点赞与匿名评论将在真实微信登录接入后开放。</text></view>
+  <view wx:if="{{!isLoggedIn && !isCloudMode}}" class="development-login surface"><text class="development-login-title">开发测试身份</text><text>仅供本地开发会话验证，非微信登录，不代表真实用户认证。</text><button class="primary-button development-login-button" loading="{{isCreatingSession}}" disabled="{{isCreatingSession}}" bindtap="startDevelopmentSession">本地测试进入</button></view>
+   <view wx:if="{{!isLoggedIn && isCloudMode && isTestIdentityMode}}" class="development-login surface"><text class="development-login-title">进入测试身份</text><text>仅用于体验；不等同于学校统一身份认证或微信认证。</text><view class="field-group"><text class="field-label">姓名</text><input class="field-input" value="{{studentName}}" maxlength="80" placeholder="请输入姓名" bindinput="onStudentNameInput" /></view><view class="field-group"><text class="field-label">12 位学号</text><input class="field-input" value="{{studentId}}" maxlength="12" placeholder="请输入 12 位数字学号" bindinput="onStudentIdInput" /></view><button class="primary-button development-login-button" loading="{{isCreatingSession}}" disabled="{{isCreatingSession}}" bindtap="loginWithTestIdentity">进入测试身份</button></view>
+   <view wx:if="{{!isLoggedIn && isCloudMode && !isTestIdentityMode}}" class="development-login surface"><text class="development-login-title">微信登录</text><text>登录后可管理个人资料，并使用点赞和匿名评论。</text><button class="primary-button development-login-button" loading="{{isCreatingSession}}" disabled="{{isCreatingSession}}" bindtap="loginWithWechat">微信登录</button></view>
 
-  <view class="section-head"><text class="section-title">身份资料</text><button wx:if="{{isLoggedIn}}" class="text-button" bindtap="toggleProfileEditor">{{isEditingProfile ? '收起' : '编辑昵称头像'}}</button></view>
+  <view class="section-head"><text class="section-title">身份资料</text><button wx:if="{{isLoggedIn}}" class="text-button" bindtap="toggleProfileEditor">{{isEditingProfile ? '收起' : '编辑昵称'}}</button></view>
   <view class="profile-card surface">
     <view wx:if="{{isEditingProfile}}" class="editor-fields">
-      <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-        <image wx:if="{{avatarUrl}}" class="avatar-preview" src="{{avatarUrl}}" mode="aspectFill"></image>
-        <text wx:else>选择头像</text>
-      </button>
+      <text class="editor-note">当前版本仅支持修改昵称；头像暂不支持上传或保存。</text>
       <view class="field-group"><text class="field-label">昵称</text><input class="field-input" value="{{nickname}}" maxlength="24" placeholder="最多 24 个字符" bindinput="onNicknameInput" /></view>
-      <button class="primary-button save-profile" bindtap="saveProfile">保存资料</button>
+      <button class="primary-button save-profile" loading="{{isSavingProfile}}" disabled="{{isSavingProfile}}" bindtap="saveProfile">保存资料</button>
     </view>
     <view wx:if="{{isLoggedIn && bindingStatus === 'unbound'}}" class="binding-fields">
       <text class="binding-title">首次绑定身份资料</text>
       <text class="binding-copy">请填写姓名和学号。绑定后不能在此页面修改。</text>
       <view class="field-group"><text class="field-label">姓名</text><input class="field-input" value="{{studentName}}" maxlength="80" placeholder="请输入姓名" bindinput="onStudentNameInput" /></view>
       <view class="field-group"><text class="field-label">学号</text><input class="field-input" value="{{studentId}}" maxlength="32" placeholder="请输入学号" bindinput="onStudentIdInput" /></view>
-       <button class="primary-button binding-button" loading="{{isBindingProfile}}" bindtap="bindProfile">确认首次绑定</button>
+       <button class="primary-button binding-button" loading="{{isBindingProfile}}" disabled="{{isBindingProfile}}" bindtap="bindProfile">确认首次绑定</button>
     </view>
     <block wx:if="{{isLoggedIn && bindingStatus === 'bound'}}">
       <view class="readonly-row"><text>姓名</text><text>{{studentName}}</text></view>
       <view class="readonly-row"><text>学号</text><text>{{studentId}}</text></view>
-      <text class="readonly-note">姓名与学号为私有只读资料，绝不会展示在匿名评论中。真实微信登录待配置。</text>
+       <text class="readonly-note">姓名与学号为私有只读资料，绝不会展示在匿名评论中。</text>
       <view class="contact-placeholder">
         <text class="contact-placeholder-title">身份资料修改入口待接入</text>
         <text class="contact-placeholder-copy">当前版本不提供管理员个人联系方式，请等待学校官方服务入口开放。</text>

@@ -7,9 +7,10 @@
 | 方法 | 路径 | 鉴权 | 用途 |
 | --- | --- | --- | --- |
 | GET | `/health` | 否 | 服务健康检查 |
-| POST | `/api/v1/auth/wechat` | 否 | 固定返回 `503`，真实微信登录未配置 |
+| POST | `/api/v1/auth/test-identity` | 否，仅 `ENABLE_TEST_IDENTITY_LOGIN=1` | 姓名和 12 位学号进入内部测试身份 |
+| POST | `/api/v1/auth/wechat` | 否 | 仅接受一次性 `code`，由服务端校验微信身份后建立会话 |
 | POST | `/api/v1/dev/sessions` | 否，仅非生产 | 创建未绑定的本地开发测试会话 |
-| GET/PATCH | `/api/v1/profile` | Bearer | 读取本人资料；仅更新昵称、头像 URL |
+| GET/PATCH | `/api/v1/profile` | Bearer | 读取本人资料；当前小程序仅更新昵称，服务端头像字段仍只接受标准 URL |
 | POST | `/api/v1/profile/binding` | Bearer | 完成首次姓名、学号绑定 |
 | POST | `/api/v1/profile/change-requests` | Bearer | 提交姓名或学号修改申请 |
 | GET | `/api/v1/courses/:courseKey/feedback` | 可选 Bearer | 返回 `likeCount`、`likedByMe` 和匿名评论 |
@@ -29,9 +30,16 @@
 - 数据库以 `(user_id, course_id)` 和 `(user_id, teacher_id)` 主键保证每个账号对相同目标只能点赞一次；支持幂等取消点赞。重复点赞返回稳定的 `liked: true`、`alreadyLiked: true` 与不重复的点赞数。
 - 两类评论均在插入前验证点赞，课程与教师评论均限制为 1 至 300 个字符；评论响应永不包含用户、账号、姓名或学号，只以 `anonymous: true` 标识匿名状态。
 - HTTP 日志不序列化请求头或请求体，因此不记录 token、姓名、学号或评论原文。
-- 当前版本不提供管理员个人联系方式；身份资料修改入口待接入，后端没有相关的联系或认证 API。
+- `POST /api/v1/auth/wechat` 的请求体仅包含 `code`。客户端不得提交 OpenID、用户 ID、账号标识或个人资料作为身份依据。
+- `POST /api/v1/auth/test-identity` 仅接受姓名和 12 位数字学号；它是内部体验入口，不是学校统一身份认证。服务端仅在显式开关开启时提供该路由；同一学号的姓名不一致会返回 `TEST_IDENTITY_MISMATCH`，不覆盖原资料。
+- 测试身份的内部账号键为 `test-identity:` 加学号 SHA-256 摘要；明文学号不复制到 `users.account_id`，但首次进入时会作为用户私有绑定资料保存。
+- 服务端仅使用微信校验结果建立内部账号键：`wechat:` 加 OpenID 的 SHA-256 摘要。原始 OpenID 不写入 `users.account_id`，只在本次服务端处理期间使用。
+- 会话表仅保存随机会话凭据的 SHA-256 哈希，不保存明文会话凭据。凭据不会写入日志、文档或测试快照。
+- 微信登录所需敏感配置仅来自云托管安全环境变量，不写入前端、仓库、镜像或日志。
+- SQLite 体验版中的会话、点赞、评论和资料变更数据受单个容器生命周期限制；容器重建或扩缩容后不保证保留，不能替代正式 MySQL。
+- 当前小程序尚未接入资料修改申请入口，也不提供管理员个人联系方式。后端保留 Bearer 鉴权的 `POST /api/v1/profile/change-requests` 路由，仅记录待处理申请；当前没有管理员处理 API、审核界面或完成通知闭环。
 - MySQL 生产 schema 包含 `roles`、`user_roles` 与 `admin_audit_logs`，仅作为后续管理员能力的数据准备：当前不导入角色、不授予任何管理员角色、也没有管理员 API。
 
 ## 数据库运行安全
 
-本地开发与测试使用 SQLite。生产环境要求 `NODE_ENV=production` 与 `DB_DRIVER=mysql`；应用不会自动执行 MySQL migration 或 seed。MySQL migration、seed 均需显式命令以及 `MYSQL_EXECUTE=1`，未满足开关时会在任何数据库连接前拒绝执行。真实微信登录、生产管理员鉴权和管理员 API 均未配置。
+本地开发与测试使用 SQLite。生产环境要求 `NODE_ENV=production` 与 `DB_DRIVER=mysql`；应用不会自动执行 MySQL migration 或 seed。MySQL migration、seed 均需显式命令以及 `MYSQL_EXECUTE=1`，未满足开关时会在任何数据库连接前拒绝执行。`ENABLE_TEST_IDENTITY_LOGIN=1` 只开启体验版姓名学号测试身份，不代表生产认证能力。生产管理员鉴权和管理员 API 均未配置。

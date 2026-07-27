@@ -3,9 +3,11 @@ var API_MODE_LOCAL = "local"
 var API_MODE_CLOUD = "cloud"
 var API_PREFIX = "/api/v1"
 var DEV_SESSION_PATH = API_PREFIX + "/dev/sessions"
+var TEST_IDENTITY_PATH = API_PREFIX + "/auth/test-identity"
 var PROFILE_BINDING_PATH = API_PREFIX + "/profile/binding"
 var REQUEST_TIMEOUT = 8000
-var SESSION_STORAGE_KEY = "njust_math_stat_development_session"
+var SESSION_STORAGE_KEY = "njust_math_stat_session"
+var sessionStorageBlocked = false
 
 function appConfig() {
   var app = typeof getApp === "function" ? getApp() : null
@@ -40,8 +42,19 @@ function cleanText(value, maxLength) {
   return text && text.length <= maxLength ? text : ""
 }
 
-function session() {
+function readStoredSession() {
   try { return wx.getStorageSync(SESSION_STORAGE_KEY) || null } catch (_error) { return null }
+}
+
+function session() {
+  if (sessionStorageBlocked) return null
+  var current = readStoredSession()
+  if (!current || typeof current.token !== "string" || !current.token) return null
+  if (typeof current.expiresAt === "number" && current.expiresAt <= Date.now()) {
+    clearSession()
+    return null
+  }
+  return current
 }
 
 function hasSession() {
@@ -49,37 +62,109 @@ function hasSession() {
   return Boolean(current && current.token)
 }
 
-function requestHeaders(options) {
+function sessionMode() {
+  var current = session()
+  return current && current.mode ? current.mode : ""
+}
+
+function clearSession() {
+  sessionStorageBlocked = true
+  try {
+    wx.removeStorageSync(SESSION_STORAGE_KEY)
+    return true
+  } catch (_error) { return false }
+}
+
+function clearSessionForToken(expectedToken) {
+  if (sessionStorageBlocked) return { cleared: false, superseded: false }
+  var current = readStoredSession()
+  if (!expectedToken || !current || current.token !== expectedToken) {
+    return {
+      cleared: false,
+      superseded: Boolean(current && (!expectedToken || current.token !== expectedToken))
+    }
+  }
+  return { cleared: clearSession(), superseded: false }
+}
+
+function changedSessionError(options, requestSession) {
+  if (options.auth === false) return null
+  var current = session()
+  var requestToken = requestSession && requestSession.token ? requestSession.token : ""
+  var currentToken = current && current.token ? current.token : ""
+  if (requestToken === currentToken) return null
+  var superseded = Boolean(currentToken)
+  var error = apiError(
+    superseded ? "登录状态已更新，正在刷新" : "登录已失效，请重新登录",
+    superseded ? "SESSION_SUPERSEDED" : "SESSION_INVALID"
+  )
+  error.sessionInvalid = true
+  error.sessionCleared = false
+  error.sessionSuperseded = superseded
+  return error
+}
+
+function persistSession(payload) {
+  var record = {
+    token: payload.token,
+    mode: payload.mode,
+    expiresAt: Date.now() + payload.expiresInSeconds * 1000
+  }
+  try {
+    wx.setStorageSync(SESSION_STORAGE_KEY, record)
+  } catch (_error) {
+    clearSession()
+    throw apiError("无法保存登录会话，请重试", "SESSION_STORAGE_UNAVAILABLE")
+  }
+  var persisted
+  try {
+    persisted = wx.getStorageSync(SESSION_STORAGE_KEY) || null
+  } catch (_error) {
+    clearSession()
+    throw apiError("无法保存登录会话，请重试", "SESSION_STORAGE_UNAVAILABLE")
+  }
+  if (!persisted || persisted.token !== record.token || persisted.mode !== record.mode || persisted.expiresAt !== record.expiresAt) {
+    clearSession()
+    throw apiError("无法保存登录会话，请重试", "SESSION_STORAGE_UNAVAILABLE")
+  }
+  sessionStorageBlocked = false
+  return payload
+}
+
+function requestHeaders(options, requestSession) {
   var headers = { "content-type": "application/json" }
   var suppliedHeaders = options.header || {}
   Object.keys(suppliedHeaders).forEach(function (key) { headers[key] = suppliedHeaders[key] })
-  var current = session()
-  if (options.auth !== false && current && current.token) headers.Authorization = "Bearer " + current.token
+  if (options.auth !== false && requestSession && requestSession.token) headers.Authorization = "Bearer " + requestSession.token
   return headers
 }
 
 function resolveResponse(response, resolve, reject) {
   var data = response.data || {}
   if (response.statusCode >= 200 && response.statusCode < 300) return resolve(data)
-  var code = response.statusCode === 401 ? "NO_SESSION" : response.statusCode === 409 ? "BINDING_CONFLICT" : "HTTP_" + response.statusCode
-  reject(apiError((data.error && data.error.message) || data.error || "服务暂不可用", code))
+  var serverCode = data.error && data.error.code
+  var sessionInvalid = response.statusCode === 401 && (serverCode === "SESSION_INVALID" || serverCode === "AUTH_REQUIRED")
+  var code = response.statusCode === 409 ? "BINDING_CONFLICT" : serverCode || "HTTP_" + response.statusCode
+  var error = apiError((data.error && data.error.message) || data.error || "服务暂不可用", code)
+  if (sessionInvalid) error.sessionInvalid = true
+  reject(error)
 }
 
-function requestLocal(options) {
+function requestLocal(options, requestSession) {
   return new Promise(function (resolve, reject) {
     wx.request({
       url: baseUrl() + options.path,
       method: options.method || "GET",
       data: options.data || {},
       timeout: REQUEST_TIMEOUT,
-      header: requestHeaders(options),
+      header: requestHeaders(options, requestSession),
       success: function (response) { resolveResponse(response, resolve, reject) },
       fail: function () { reject(apiError("服务未连接，请检查本地开发配置", "NETWORK_ERROR")) }
     })
   })
 }
 
-function requestCloud(options) {
+function requestCloud(options, requestSession) {
   return new Promise(function (resolve, reject) {
     var cloud = typeof wx !== "undefined" && wx.cloud
     var config = cloudConfig()
@@ -101,7 +186,7 @@ function requestCloud(options) {
       path: options.path,
       method: method,
       data: options.data || {},
-      header: requestHeaders(options),
+      header: requestHeaders(options, requestSession),
       timeout: REQUEST_TIMEOUT,
       success: function (response) { resolveResponse(response, resolve, reject) },
       fail: function () { reject(apiError("云托管服务未连接，请检查云环境、服务名和发布配置", "NETWORK_ERROR")) }
@@ -110,15 +195,79 @@ function requestCloud(options) {
 }
 
 function request(options) {
-  return apiMode() === API_MODE_CLOUD ? requestCloud(options) : requestLocal(options)
+  var requestSession = options.auth === false ? null : session()
+  var pending = apiMode() === API_MODE_CLOUD ? requestCloud(options, requestSession) : requestLocal(options, requestSession)
+  return pending.then(function (payload) {
+    var changedError = changedSessionError(options, requestSession)
+    return changedError ? Promise.reject(changedError) : payload
+  }).catch(function (error) {
+    if (error && error.sessionInvalid && typeof error.sessionSuperseded === "boolean") return Promise.reject(error)
+    var changedError = changedSessionError(options, requestSession)
+    if (changedError) {
+      if (error && error.sessionInvalid) {
+        error.sessionCleared = false
+        error.sessionSuperseded = true
+        return Promise.reject(error)
+      }
+      return Promise.reject(changedError)
+    }
+    if (error && error.sessionInvalid) {
+      var invalidation = clearSessionForToken(requestSession && requestSession.token)
+      error.sessionCleared = invalidation.cleared
+      error.sessionSuperseded = invalidation.superseded
+    }
+    return Promise.reject(error)
+  })
 }
 
-function createDevelopmentSession() {
+function deferSessionPersistence(options) {
+  return Boolean(options && options.deferPersist === true)
+}
+
+function loginWithWechat(options) {
+  if (typeof wx === "undefined" || typeof wx.login !== "function") {
+    return Promise.reject(apiError("当前运行环境不支持微信登录", "WECHAT_LOGIN_UNAVAILABLE"))
+  }
+  return new Promise(function (resolve, reject) {
+    wx.login({
+      timeout: REQUEST_TIMEOUT,
+      success: function (result) {
+        if (!result || !result.code) return reject(apiError("未获得微信登录凭据，请重试", "WECHAT_LOGIN_UNAVAILABLE"))
+        resolve(result.code)
+      },
+      fail: function () { reject(apiError("微信登录未完成，请重试", "WECHAT_LOGIN_UNAVAILABLE")) }
+    })
+  }).then(function (code) {
+    return request({ method: "POST", path: API_PREFIX + "/auth/wechat", auth: false, data: { code: code } })
+  }).then(function (payload) {
+    if (!payload || typeof payload.token !== "string" || payload.mode !== "wechat" || !Number.isInteger(payload.expiresInSeconds) || payload.expiresInSeconds < 1) {
+      throw apiError("微信登录响应无效", "INVALID_SESSION_RESPONSE")
+    }
+    return deferSessionPersistence(options) ? payload : persistSession(payload)
+  })
+}
+
+function createDevelopmentSession(options) {
   var accountId = "dev-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10)
   return request({ method: "POST", path: DEV_SESSION_PATH, auth: false, data: { accountId: accountId } }).then(function (payload) {
-    if (!payload.token || payload.mode !== "development-test-only") throw apiError("开发测试会话创建失败", "INVALID_SESSION_RESPONSE")
-    try { wx.setStorageSync(SESSION_STORAGE_KEY, { token: payload.token, mode: payload.mode }) } catch (_error) {}
-    return payload
+    if (!payload.token || payload.mode !== "development-test-only" || !Number.isInteger(payload.expiresInSeconds) || payload.expiresInSeconds < 1) {
+      throw apiError("开发测试会话创建失败", "INVALID_SESSION_RESPONSE")
+    }
+    return deferSessionPersistence(options) ? payload : persistSession(payload)
+  })
+}
+
+function loginWithTestIdentity(identity, options) {
+  var name = cleanText(identity && identity.name, 80)
+  var studentNumber = cleanText(identity && identity.studentNumber, 12)
+  if (!name || !/^\d{12}$/.test(studentNumber)) {
+    return Promise.reject(apiError("请填写姓名和 12 位学号", "INVALID_TEST_IDENTITY"))
+  }
+  return request({ method: "POST", path: TEST_IDENTITY_PATH, auth: false, data: { name: name, studentNumber: studentNumber } }).then(function (payload) {
+    if (!payload || typeof payload.token !== "string" || payload.mode !== "test-identity" || !Number.isInteger(payload.expiresInSeconds) || payload.expiresInSeconds < 1) {
+      throw apiError("测试身份响应无效", "INVALID_SESSION_RESPONSE")
+    }
+    return deferSessionPersistence(options) ? payload : persistSession(payload)
   })
 }
 
@@ -138,9 +287,8 @@ function getProfile() {
 
 function updateProfile(profile) {
   var nickname = cleanText(profile && profile.nickname, 24)
-  var avatarUrl = cleanText(profile && profile.avatarUrl, 512)
-  if (!nickname && !avatarUrl) return Promise.reject(apiError("请填写昵称或选择头像", "INVALID_PROFILE"))
-  return request({ method: "PATCH", path: API_PREFIX + "/profile", data: { nickname: nickname || undefined, avatarUrl: avatarUrl || null } }).then(normalizeProfile)
+  if (!nickname) return Promise.reject(apiError("请填写昵称", "INVALID_PROFILE"))
+  return request({ method: "PATCH", path: API_PREFIX + "/profile", data: { nickname: nickname } }).then(normalizeProfile)
 }
 
 function bindProfile(binding) {
@@ -197,8 +345,14 @@ module.exports = {
   API_MODE_CLOUD: API_MODE_CLOUD,
   API_PREFIX: API_PREFIX,
   DEV_SESSION_PATH: DEV_SESSION_PATH,
+  TEST_IDENTITY_PATH: TEST_IDENTITY_PATH,
   PROFILE_BINDING_PATH: PROFILE_BINDING_PATH,
   hasSession: hasSession,
+  sessionMode: sessionMode,
+  clearSession: clearSession,
+  persistSession: persistSession,
+  loginWithWechat: loginWithWechat,
+  loginWithTestIdentity: loginWithTestIdentity,
   createDevelopmentSession: createDevelopmentSession,
   getProfile: getProfile,
   updateProfile: updateProfile,

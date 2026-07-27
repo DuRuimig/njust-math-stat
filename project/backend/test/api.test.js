@@ -4,7 +4,8 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const request = require('supertest');
 const { sqliteDatabase } = require('../src/db');
-const { createApp } = require('../src/app');
+const { createApp, tokenHash } = require('../src/app');
+const { createWechatAuth, WechatAuthError } = require('../src/wechat-auth');
 const courseLibrary = require('../../../miniprogram/data/course-library');
 
 let db;
@@ -42,6 +43,45 @@ async function session(accountId, options = {}) {
 const auth = (token) => ({ Authorization: `Bearer ${token}` });
 const coursePath = (suffix) => `${v1}/courses/${encodeURIComponent(courseKey)}/${suffix}`;
 const teacherPath = (suffix) => `${v1}/teachers/${encodeURIComponent(teacherId)}/${suffix}`;
+
+function forcedSqliteUniqueConflictDatabase() {
+  const state = { userLookups: 0, userInsertAttempts: 0, sessionInsertAttempts: 0 };
+  return {
+    state,
+    database: {
+      kind: 'sqlite',
+      prepare(sql) {
+        if (sql === 'SELECT id FROM users WHERE account_id = ?') {
+          return {
+            get() {
+              state.userLookups += 1;
+              return state.userLookups === 1 ? undefined : { id: 'existing-user' };
+            },
+          };
+        }
+        if (sql === 'INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)') {
+          return {
+            run() {
+              state.userInsertAttempts += 1;
+              const error = new Error('unique account conflict');
+              error.code = 'SQLITE_CONSTRAINT_UNIQUE';
+              throw error;
+            },
+          };
+        }
+        if (sql.startsWith('INSERT INTO sessions ')) {
+          return {
+            run() {
+              state.sessionInsertAttempts += 1;
+              return { changes: 1 };
+            },
+          };
+        }
+        throw new Error(`Unexpected SQLite query: ${sql}`);
+      },
+    },
+  };
+}
 
 function expectAnonymous(comment) {
   expect(comment).toMatchObject({ anonymous: true });
@@ -84,6 +124,180 @@ describe('v1 API 契约', () => {
     const response = await request(productionApp).post(`${v1}/dev/sessions`).send({ accountId: 'production-attempt' });
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('测试身份登录受显式开关保护，并只接受姓名和 12 位学号', async () => {
+    const disabled = await request(app).post(`${v1}/auth/test-identity`).send({ name: '测试姓名', studentNumber: '123456789012' });
+    expect(disabled.status).toBe(404);
+    expect(disabled.body.error.code).toBe('NOT_FOUND');
+
+    const testIdentityApp = createApp({ db, env: 'production', testIdentityLoginEnabled: true });
+    for (const body of [
+      {},
+      { name: '测试姓名', studentNumber: '12345678901' },
+      { name: '测试姓名', studentNumber: '1234567890123' },
+      { name: '测试姓名', studentNumber: '12345678901a' },
+      { name: '测试姓名', studentNumber: '123456789012', accountId: 'forged-account' },
+    ]) {
+      const response = await request(testIdentityApp).post(`${v1}/auth/test-identity`).send(body);
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_FAILED');
+    }
+  });
+
+  it('测试身份以学号稳定识别用户，拒绝姓名冲突且不泄露明文学号到账户键', async () => {
+    const studentNumber = '123456789012';
+    const name = '测试姓名';
+    const expectedAccountId = `test-identity:${crypto.createHash('sha256').update(studentNumber).digest('hex')}`;
+    const testIdentityApp = createApp({ db, env: 'production', testIdentityLoginEnabled: true });
+
+    const first = await request(testIdentityApp).post(`${v1}/auth/test-identity`).send({ name, studentNumber });
+    expect(first.status).toBe(201);
+    expect(first.body).toMatchObject({ mode: 'test-identity', expiresInSeconds: 604800 });
+    const profile = await request(testIdentityApp).get(`${v1}/profile`).set(auth(first.body.token));
+    expect(profile.body).toMatchObject({ bindingStatus: 'bound', privateBinding: { name, studentNumber } });
+
+    const second = await request(testIdentityApp).post(`${v1}/auth/test-identity`).send({ name, studentNumber });
+    expect(second.status).toBe(201);
+    expect(second.body.token).not.toBe(first.body.token);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM users WHERE account_id = ?').get(expectedAccountId).count).toBe(1);
+    expect(expectedAccountId).not.toContain(studentNumber);
+
+    const conflict = await request(testIdentityApp).post(`${v1}/auth/test-identity`).send({ name: '不同姓名', studentNumber });
+    expect(conflict.status).toBe(409);
+    expect(conflict.body.error.code).toBe('TEST_IDENTITY_MISMATCH');
+    expect(db.prepare('SELECT legal_name, student_number FROM users WHERE account_id = ?').get(expectedAccountId)).toEqual({ legal_name: name, student_number: studentNumber });
+  });
+
+  it('同一测试身份的并发首次进入只创建一个用户', async () => {
+    const studentNumber = '123456789013';
+    const name = '并发测试';
+    const expectedAccountId = `test-identity:${crypto.createHash('sha256').update(studentNumber).digest('hex')}`;
+    const testIdentityApp = createApp({ db, env: 'production', testIdentityLoginEnabled: true });
+
+    const [first, second] = await Promise.all([
+      request(testIdentityApp).post(`${v1}/auth/test-identity`).send({ name, studentNumber }),
+      request(testIdentityApp).post(`${v1}/auth/test-identity`).send({ name, studentNumber }),
+    ]);
+
+    expect([first.status, second.status]).toEqual([201, 201]);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM users WHERE account_id = ?').get(expectedAccountId).count).toBe(1);
+  });
+
+  it('微信登录只接受一次性 code，服务端校验后才创建 Bearer 会话', async () => {
+    const mockWechatOpenId = crypto.randomBytes(24).toString('base64url');
+    const expectedAccountId = `wechat:${crypto.createHash('sha256').update(mockWechatOpenId).digest('hex')}`;
+    let verifiedCodeCount = 0;
+    const wechatApp = createApp({
+      db,
+      env: 'production',
+      wechatAuth: async (code) => {
+        verifiedCodeCount += 1;
+        if (code === 'expired-code') {
+          throw new WechatAuthError('WECHAT_CODE_INVALID', '微信登录凭据无效或已过期，请重试');
+        }
+        return { openid: mockWechatOpenId };
+      },
+    });
+    const forgedIdentity = await request(wechatApp).post(`${v1}/auth/wechat`).send({ openid: 'forged-openid', code: 'valid-code' });
+    expect(forgedIdentity.status).toBe(400);
+    expect(forgedIdentity.body.error.code).toBe('VALIDATION_FAILED');
+
+    const login = await request(wechatApp).post(`${v1}/auth/wechat`).send({ code: 'valid-code' });
+    expect(login.status).toBe(201);
+    expect(login.body).toMatchObject({ expiresInSeconds: 604800, mode: 'wechat' });
+    expect(typeof login.body.token).toBe('string');
+    expect(verifiedCodeCount).toBe(1);
+    const storedAccount = db.prepare('SELECT account_id FROM users WHERE account_id = ?').get(expectedAccountId);
+    expect(storedAccount).toEqual({ account_id: expectedAccountId });
+    expect(storedAccount.account_id).not.toContain(mockWechatOpenId);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM users WHERE account_id = ?').get(`wechat:${mockWechatOpenId}`).count).toBe(0);
+    expect(db.prepare('SELECT token_hash FROM sessions WHERE token_hash = ?').get(login.body.token)).toBeUndefined();
+    expect(db.prepare('SELECT token_hash FROM sessions WHERE token_hash = ?').get(tokenHash(login.body.token))).toEqual({ token_hash: tokenHash(login.body.token) });
+
+    expect((await request(wechatApp).get(`${v1}/profile`).set(auth(login.body.token))).status).toBe(200);
+    const expiredCode = await request(wechatApp).post(`${v1}/auth/wechat`).send({ code: 'expired-code' });
+    expect(expiredCode.status).toBe(401);
+    expect(expiredCode.body.error.code).toBe('WECHAT_CODE_INVALID');
+    const invalidSession = await request(wechatApp).post(coursePath('likes')).set(auth('forged-bearer-token'));
+    expect(invalidSession.status).toBe(401);
+    expect(invalidSession.body.error.code).toBe('SESSION_INVALID');
+  });
+
+  it('同一微信身份的并发首次登录不会返回 500，且只创建一个用户记录', async () => {
+    const mockWechatOpenId = crypto.randomBytes(24).toString('base64url');
+    const expectedAccountId = `wechat:${crypto.createHash('sha256').update(mockWechatOpenId).digest('hex')}`;
+    let authCalls = 0;
+    let releaseIdentity;
+    const bothRequestsStarted = new Promise((resolve) => { releaseIdentity = resolve; });
+    const concurrentWechatApp = createApp({
+      db,
+      env: 'production',
+      wechatAuth: async () => {
+        authCalls += 1;
+        if (authCalls === 2) releaseIdentity();
+        await bothRequestsStarted;
+        return { openid: mockWechatOpenId };
+      },
+    });
+
+    const [firstLogin, secondLogin] = await Promise.all([
+      request(concurrentWechatApp).post(`${v1}/auth/wechat`).send({ code: 'parallel-code-one' }),
+      request(concurrentWechatApp).post(`${v1}/auth/wechat`).send({ code: 'parallel-code-two' }),
+    ]);
+
+    expect(authCalls).toBe(2);
+    expect([firstLogin.status, secondLogin.status]).toEqual([201, 201]);
+    expect([firstLogin.status, secondLogin.status]).not.toContain(500);
+    const storedAccount = db.prepare('SELECT account_id FROM users WHERE account_id = ?').get(expectedAccountId);
+    expect(storedAccount).toEqual({ account_id: expectedAccountId });
+    expect(storedAccount.account_id).not.toContain(mockWechatOpenId);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM users WHERE account_id = ?').get(expectedAccountId).count).toBe(1);
+  });
+
+  it('微信登录在强制 SQLite UNIQUE 恢复分支后返回 201 而非 500', async () => {
+    const fixture = forcedSqliteUniqueConflictDatabase();
+    const wechatApp = createApp({
+      db: fixture.database,
+      env: 'production',
+      wechatAuth: async () => ({ openid: crypto.randomBytes(24).toString('base64url') }),
+    });
+
+    const response = await request(wechatApp).post(`${v1}/auth/wechat`).send({ code: 'forced-unique-code' });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({ mode: 'wechat', expiresInSeconds: 604800 });
+    expect(fixture.state).toEqual({ userLookups: 2, userInsertAttempts: 1, sessionInsertAttempts: 1 });
+  });
+
+  it('微信身份服务未配置或拒绝 code 时不创建用户或会话', async () => {
+    const unconfiguredApp = createApp({
+      db,
+      env: 'production',
+      wechatAuth: async () => {
+        throw new WechatAuthError('WECHAT_LOGIN_UNCONFIGURED', '真实微信登录尚未配置，无法完成身份认证');
+      },
+    });
+    const beforeUsers = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
+    const response = await request(unconfiguredApp).post(`${v1}/auth/wechat`).send({ code: 'valid-code' });
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('WECHAT_LOGIN_UNCONFIGURED');
+    expect(db.prepare('SELECT COUNT(*) AS count FROM users').get().count).toBe(beforeUsers);
+  });
+
+  it('仅微信明确拒绝的一次性 code 返回 401，密钥或上游错误不伪装为客户端失败', async () => {
+    const createAuthWithWechatError = (errcode) => createWechatAuth({
+      env: { WX_MINIPROGRAM_APP_ID: 'test-app-id', WX_MINIPROGRAM_APP_SECRET: 'test-app-secret' },
+      fetchImpl: async () => ({ ok: true, json: async () => ({ errcode }) }),
+    });
+    const invalidCodeAuth = createAuthWithWechatError(40029);
+    await expect(invalidCodeAuth('test-code')).rejects.toMatchObject({ code: 'WECHAT_CODE_INVALID' });
+
+    const reusedCodeAuth = createAuthWithWechatError(40163);
+    await expect(reusedCodeAuth('test-code')).rejects.toMatchObject({ code: 'WECHAT_CODE_INVALID' });
+
+    const unavailableAuth = createAuthWithWechatError(40125);
+    await expect(unavailableAuth('test-code')).rejects.toMatchObject({ code: 'WECHAT_AUTH_UNAVAILABLE' });
   });
 
   it('首次身份绑定要求认证并在成功后返回当前 profile', async () => {

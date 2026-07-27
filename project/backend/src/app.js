@@ -7,9 +7,17 @@ const pino = require('pino');
 const pinoHttp = require('pino-http');
 const { z } = require('zod');
 const { createRepository } = require('./repository');
+const { createWechatAuth, WechatAuthError } = require('./wechat-auth');
 
 const sessionSchema = z.object({
   accountId: z.string().trim().min(3).max(80),
+}).strict();
+const wechatLoginSchema = z.object({
+  code: z.string().trim().min(6).max(512),
+}).strict();
+const testIdentitySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  studentNumber: z.string().trim().regex(/^\d{12}$/),
 }).strict();
 const bindingSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -28,6 +36,8 @@ const teacherSummaryQuerySchema = z.object({
   ids: z.string().max(6600).optional(),
 }).strict();
 const tokenHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const wechatAccountId = (openid) => `wechat:${crypto.createHash('sha256').update(openid).digest('hex')}`;
+const testIdentityAccountId = (studentNumber) => `test-identity:${crypto.createHash('sha256').update(studentNumber).digest('hex')}`;
 const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 function apiError(res, status, code, message) {
@@ -40,7 +50,7 @@ function bindingStatus(user) {
   return 'unbound';
 }
 
-function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }) } = {}) {
+function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }), wechatAuth = createWechatAuth(), testIdentityLoginEnabled = process.env.ENABLE_TEST_IDENTITY_LOGIN === '1' } = {}) {
   if (!db) throw new Error('createApp requires an initialized database connection');
   const repository = createRepository(db);
   const app = express();
@@ -117,7 +127,39 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   }
 
   const api = express.Router();
-  api.post('/auth/wechat', (_req, res) => apiError(res, 503, 'WECHAT_LOGIN_UNCONFIGURED', '真实微信登录尚未配置，无法完成身份认证'));
+  api.post('/auth/wechat', asyncHandler(async (req, res) => {
+    const parsed = wechatLoginSchema.safeParse(req.body);
+    if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '微信登录凭据格式无效');
+    let identity;
+    try {
+      identity = await wechatAuth(parsed.data.code);
+    } catch (error) {
+      if (error instanceof WechatAuthError) {
+        const status = error.code === 'WECHAT_LOGIN_UNCONFIGURED' ? 503 : error.code === 'WECHAT_CODE_INVALID' ? 401 : 502;
+        return apiError(res, status, error.code, error.message);
+      }
+      throw error;
+    }
+    // Keep the WeChat identity in process memory only long enough to derive its internal account key.
+    const accountId = wechatAccountId(identity.openid);
+    const user = await repository.findOrCreateUser(accountId, crypto.randomUUID());
+    const token = crypto.randomBytes(32).toString('base64url');
+    await repository.createSession(tokenHash(token), user.id);
+    res.status(201).json({ token, expiresInSeconds: 604800, mode: 'wechat' });
+  }));
+  api.post('/auth/test-identity', asyncHandler(async (req, res) => {
+    if (!testIdentityLoginEnabled) return apiError(res, 404, 'NOT_FOUND', '未找到资源');
+    const parsed = testIdentitySchema.safeParse(req.body);
+    if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '请填写姓名和 12 位学号');
+    const { name, studentNumber } = parsed.data;
+    const user = await repository.findOrCreateTestIdentity(testIdentityAccountId(studentNumber), crypto.randomUUID(), name, studentNumber);
+    if (user.legal_name !== name || user.student_number !== studentNumber) {
+      return apiError(res, 409, 'TEST_IDENTITY_MISMATCH', '该学号已被不同姓名的测试身份使用');
+    }
+    const token = crypto.randomBytes(32).toString('base64url');
+    await repository.createSession(tokenHash(token), user.id);
+    res.status(201).json({ token, expiresInSeconds: 604800, mode: 'test-identity' });
+  }));
   api.post('/dev/sessions', asyncHandler(async (req, res) => {
     if (env === 'production') return apiError(res, 404, 'NOT_FOUND', '未找到资源');
     const parsed = sessionSchema.safeParse(req.body);

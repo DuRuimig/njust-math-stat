@@ -7,6 +7,10 @@ function backendCourseKey(course) {
   return String(course.code || "") + ":" + name.replace(/\s+/g, "")
 }
 
+function shouldShowSessionExpired(error) {
+  return !(error && (error.sessionSuperseded || error.code === "SESSION_SUPERSEDED"))
+}
+
 Page({
   data: {
     course: null,
@@ -25,6 +29,7 @@ Page({
   },
 
   onLoad: function (options) {
+    this.sessionRequestEpoch = (this.sessionRequestEpoch || 0) + 1
     var key = decodeURIComponent(options.key || "")
     var resolution = library.getCourseKeyResolution(key)
     var course = resolution.course
@@ -61,7 +66,9 @@ Page({
       this.setData({ teacherFeedbackConnected: true })
       return
     }
+    var requestEpoch = this.sessionRequestEpoch || 0
     api.getTeacherFeedbackSummary(teachers.map(function (teacher) { return teacher.directoryId })).then(function (response) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
       var summaries = response.items || []
       var byId = {}
       summaries.forEach(function (item) { byId[item.teacherId] = item })
@@ -82,13 +89,17 @@ Page({
         })
       })
     }).catch(function (_error) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
+      if (page.handleSessionInvalid(_error)) return
       page.setData({ teacherFeedbackConnected: false })
     })
   },
 
   loadFeedback: function (courseKey) {
     var page = this
+    var requestEpoch = this.sessionRequestEpoch || 0
     api.getFeedback("courses", courseKey).then(function (feedback) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
       page.setData({
         feedbackConnected: true,
         isLoggedIn: api.hasSession(),
@@ -99,10 +110,52 @@ Page({
         }) : []
       })
     }).catch(function (error) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
+      if (page.handleSessionInvalid(error)) return
       page.setData({
         feedbackConnected: false
       })
     })
+  },
+
+  isCurrentSessionRequest: function (requestEpoch) {
+    return requestEpoch === (this.sessionRequestEpoch || 0)
+  },
+
+  handleSessionInvalid: function (error) {
+    if (!error || !error.sessionInvalid) return false
+    if (error.sessionSuperseded) {
+      this.sessionRequestEpoch = (this.sessionRequestEpoch || 0) + 1
+      this.setData({
+        feedbackConnected: false,
+        teacherFeedbackConnected: false,
+        isLoggedIn: api.hasSession(),
+        hasLiked: false,
+        isLiking: false,
+        commentText: "",
+        isSubmittingComment: false,
+        directoryTeachers: this.data.directoryTeachers.map(function (teacher) {
+          return Object.assign({}, teacher, { hasLiked: false, isLiking: false })
+        })
+      })
+      if (this.data.course) this.loadFeedback(backendCourseKey(this.data.course))
+      this.loadTeacherFeedbackSummary(this.data.directoryTeachers)
+      return true
+    }
+    this.sessionRequestEpoch = (this.sessionRequestEpoch || 0) + 1
+    this.setData({
+      feedbackConnected: false,
+      teacherFeedbackConnected: false,
+      isLoggedIn: false,
+      hasLiked: false,
+      isLiking: false,
+      commentText: "",
+      isSubmittingComment: false,
+      directoryTeachers: this.data.directoryTeachers.map(function (teacher) {
+        return Object.assign({}, teacher, { hasLiked: false, isLiking: false })
+      })
+    })
+    return true
   },
 
   likeCourse: function () {
@@ -116,14 +169,16 @@ Page({
       return
     }
     if (!this.data.isLoggedIn) {
-      wx.showToast({ title: "请先使用本地测试身份进入", icon: "none" })
+      wx.showToast({ title: "请先进入测试身份", icon: "none" })
       return
     }
     if (this.data.isLiking) return
     var wasLiked = this.data.hasLiked
+    var requestEpoch = this.sessionRequestEpoch || 0
     this.setData({ isLiking: true })
     var action = wasLiked ? api.unlike : api.like
     action("courses", backendCourseKey(course)).then(function (feedback) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
       if (!feedback || feedback.liked !== !wasLiked || !Number.isFinite(Number(feedback.likeCount)) || Number(feedback.likeCount) < 0) {
         throw new Error("点赞服务返回无效结果")
       }
@@ -134,7 +189,12 @@ Page({
       })
       wx.showToast({ title: feedback.liked ? "已标记有帮助" : "已取消点赞", icon: "success" })
     }).catch(function (error) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
       var message = (error && error.message) || "服务未连接，请检查本地开发配置"
+      if (page.handleSessionInvalid(error)) {
+        if (shouldShowSessionExpired(error)) wx.showToast({ title: "登录已失效，请重新登录", icon: "none" })
+        return
+      }
       page.setData({ isLiking: false })
       wx.showToast({ title: message, icon: "none" })
     })
@@ -152,16 +212,18 @@ Page({
       return
     }
     if (!api.hasSession()) {
-      wx.showToast({ title: "请先使用本地测试身份进入", icon: "none" })
+      wx.showToast({ title: "请先进入测试身份", icon: "none" })
       return
     }
     if (teacher.isLiking) {
       return
     }
     var wasLiked = teacher.hasLiked
+    var requestEpoch = this.sessionRequestEpoch || 0
     this.updateTeacher(directoryId, { isLiking: true })
     var action = wasLiked ? api.unlike : api.like
     action("teachers", directoryId).then(function (feedback) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
       if (!feedback || feedback.liked !== !wasLiked || !Number.isFinite(Number(feedback.likeCount)) || Number(feedback.likeCount) < 0) {
         throw new Error("点赞服务返回无效结果")
       }
@@ -172,8 +234,13 @@ Page({
       })
       wx.showToast({ title: feedback.liked ? "点赞成功" : "已取消点赞", icon: "success" })
     }).catch(function (error) {
-      page.updateTeacher(directoryId, { isLiking: false })
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
       var message = (error && error.message) || "点赞服务未连接"
+      if (page.handleSessionInvalid(error)) {
+        if (shouldShowSessionExpired(error)) wx.showToast({ title: "登录已失效，请重新登录", icon: "none" })
+        return
+      }
+      page.updateTeacher(directoryId, { isLiking: false })
       wx.showToast({ title: message, icon: "none" })
     })
   },
@@ -201,7 +268,7 @@ Page({
       return
     }
     if (!this.data.isLoggedIn) {
-      wx.showToast({ title: "请先使用本地测试身份进入", icon: "none" })
+      wx.showToast({ title: "请先进入测试身份", icon: "none" })
       return
     }
     if (!this.data.hasLiked) {
@@ -212,8 +279,10 @@ Page({
       wx.showToast({ title: "请输入 1 至 300 个字符的评论", icon: "none" })
       return
     }
+    var requestEpoch = this.sessionRequestEpoch || 0
     this.setData({ isSubmittingComment: true })
     api.postComment("courses", backendCourseKey(course), this.data.commentText).then(function (response) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
       var comment = response.comment || response
       page.setData({
         comments: comment ? [{ content: comment.content || "", createdAt: comment.createdAt || "" }].concat(page.data.comments) : page.data.comments,
@@ -222,7 +291,12 @@ Page({
       })
       wx.showToast({ title: "评论已发布", icon: "success" })
     }).catch(function (error) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
       var message = (error && error.message) || "服务未连接，请检查本地开发配置"
+      if (page.handleSessionInvalid(error)) {
+        if (shouldShowSessionExpired(error)) wx.showToast({ title: "登录已失效，请重新登录", icon: "none" })
+        return
+      }
       page.setData({ feedbackConnected: false, isSubmittingComment: false })
       wx.showToast({ title: message, icon: "none" })
     })

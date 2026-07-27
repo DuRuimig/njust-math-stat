@@ -3,6 +3,12 @@ function createRepository(db) {
   return createSqliteRepository(db);
 }
 
+function isUserAccountUniqueConflict(error) {
+  if (!error) return false;
+  if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY') return true;
+  return error.code === 'SQLITE_CONSTRAINT' && /users\.account_id/i.test(error.message || '');
+}
+
 function createSqliteRepository(db) {
   const one = (sql, ...params) => Promise.resolve(db.prepare(sql).get(...params));
   const many = (sql, ...params) => Promise.resolve(db.prepare(sql).all(...params));
@@ -61,6 +67,36 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     allTeacherKeys: () => many('SELECT directory_key FROM teachers ORDER BY directory_key'),
     findUserByAccount: (accountId) => one('SELECT id FROM users WHERE account_id = ?', accountId),
     createUser: (id, accountId) => run('INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)', id, accountId, '新同学'),
+    findOrCreateTestIdentity: async (accountId, id, name, studentNumber) => {
+      const existing = await one('SELECT id, legal_name, student_number FROM users WHERE account_id = ?', accountId);
+      if (existing) return existing;
+
+      const candidate = { id, legal_name: name, student_number: studentNumber };
+      try {
+        await run('INSERT INTO users (id, account_id, nickname, legal_name, student_number) VALUES (?, ?, ?, ?, ?)', candidate.id, accountId, '新同学', name, studentNumber);
+        return candidate;
+      } catch (error) {
+        if (!isUserAccountUniqueConflict(error)) throw error;
+        const concurrentUser = await one('SELECT id, legal_name, student_number FROM users WHERE account_id = ?', accountId);
+        if (concurrentUser) return concurrentUser;
+        throw error;
+      }
+    },
+    findOrCreateUser: async (accountId, id) => {
+      const existing = await one('SELECT id FROM users WHERE account_id = ?', accountId);
+      if (existing) return existing;
+
+      const candidate = { id };
+      try {
+        await run('INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)', candidate.id, accountId, '新同学');
+        return candidate;
+      } catch (error) {
+        if (!isUserAccountUniqueConflict(error)) throw error;
+        const concurrentUser = await one('SELECT id FROM users WHERE account_id = ?', accountId);
+        if (concurrentUser) return concurrentUser;
+        throw error;
+      }
+    },
     createSession: (hash, userId) => run(`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ${nowPlusSevenDays})`, hash, userId),
     bindProfile: (name, studentNumber, userId) => run('UPDATE users SET legal_name = ?, student_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND legal_name IS NULL AND student_number IS NULL', name, studentNumber, userId),
     profile: (userId) => one('SELECT nickname, avatar_url, legal_name, student_number FROM users WHERE id = ?', userId),
