@@ -188,10 +188,6 @@ Page({
     if (!course) {
       return
     }
-    if (!this.data.feedbackConnected) {
-      wx.showToast({ title: "互动服务未连接，无法点赞", icon: "none" })
-      return
-    }
     if (!this.data.isLoggedIn) {
       wx.showToast({ title: "请先进入测试身份", icon: "none" })
       return
@@ -207,6 +203,7 @@ Page({
         throw new Error("点赞服务返回无效结果")
       }
       page.setData({
+        feedbackConnected: true,
         hasLiked: Boolean(feedback.liked),
         likeCount: Number(feedback.likeCount),
         isLiking: false
@@ -231,10 +228,6 @@ Page({
       return item.directoryId === directoryId
     })[0]
     if (!teacher) return
-    if (!this.data.teacherFeedbackConnected) {
-      wx.showToast({ title: "点赞服务未连接，无法点赞", icon: "none" })
-      return
-    }
     if (!api.hasSession()) {
       wx.showToast({ title: "请先进入测试身份", icon: "none" })
       return
@@ -251,6 +244,7 @@ Page({
       if (!feedback || feedback.liked !== !wasLiked || !Number.isFinite(Number(feedback.likeCount)) || Number(feedback.likeCount) < 0) {
         throw new Error("点赞服务返回无效结果")
       }
+      page.setData({ teacherFeedbackConnected: true })
       page.updateTeacher(directoryId, {
         hasLiked: Boolean(feedback.liked),
         likeCount: Number(feedback.likeCount),
@@ -287,10 +281,6 @@ Page({
     if (!course) {
       return
     }
-    if (!this.data.feedbackConnected) {
-      wx.showToast({ title: "互动服务未连接，无法发布评论", icon: "none" })
-      return
-    }
     if (!this.data.isLoggedIn) {
       wx.showToast({ title: "请先进入测试身份", icon: "none" })
       return
@@ -309,6 +299,7 @@ Page({
       if (!page.isCurrentSessionRequest(requestEpoch)) return
       var comment = response.comment || response
       page.setData({
+        feedbackConnected: true,
         comments: comment ? [{ content: comment.content || "", createdAt: comment.createdAt || "" }].concat(page.data.comments) : page.data.comments,
         commentText: "",
         isSubmittingComment: false

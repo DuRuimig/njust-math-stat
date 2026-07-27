@@ -837,6 +837,29 @@ describe('教师目录页会话状态', () => {
 });
 
 describe('课程详情会话失效状态', () => {
+  it('课程反馈摘要加载失败后，已登录用户仍可直接点赞并恢复互动状态', async () => {
+    const pending = [];
+    const runtime = installCloudRuntime((options) => { pending.push(options); });
+    loadApi();
+    const page = createPage(loadCourseDetailPage());
+    page.setData({
+      course: { code: '10000001', name: '测试课程' },
+      feedbackConnected: false,
+      isLoggedIn: true,
+      hasLiked: false,
+    });
+
+    page.likeCourse();
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({ method: 'POST', path: '/api/v1/courses/10000001%3A%E6%B5%8B%E8%AF%95%E8%AF%BE%E7%A8%8B/likes' });
+    pending[0].success({ statusCode: 201, data: { liked: true, likeCount: 1 } });
+    await flushPromises();
+    await flushPromises();
+
+    expect(page.data).toMatchObject({ feedbackConnected: true, hasLiked: true, likeCount: 1, isLiking: false });
+    expect(runtime.toasts.some((toast) => toast.icon === 'success')).toBe(true);
+  });
+
   it('先查看课程再进入测试身份后，会刷新课程和课程内教师的可写状态', async () => {
     const pending = [];
     const runtime = installCloudRuntime((options) => { pending.push(options); }, { initialSession: null });
