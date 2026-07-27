@@ -411,6 +411,19 @@ describe('v1 API 契约', () => {
     expect(relikedFeedback.body).toMatchObject({ likeCount: 1, likedByMe: true });
   });
 
+  it('课程 key 被云网关二次编码时仍可读取并点赞', async () => {
+    const token = await session('student-double-encoded-course');
+    const doubleEncodedPath = `${v1}/courses/${encodeURIComponent(encodeURIComponent(courseKey))}`;
+
+    const feedback = await request(app).get(`${doubleEncodedPath}/feedback`).set(auth(token));
+    expect(feedback.status).toBe(200);
+    expect(feedback.body).toMatchObject({ likedByMe: false });
+
+    const liked = await request(app).post(`${doubleEncodedPath}/likes`).set(auth(token));
+    expect(liked.status).toBe(201);
+    expect(liked.body).toMatchObject({ liked: true, alreadyLiked: false });
+  });
+
   it('教师支持点赞、幂等取消、重新点赞，并同步摘要 likedByMe', async () => {
     const token = await session('student-d');
     const summaryPath = `${v1}/teachers/feedback-summary?ids=${encodeURIComponent(teacherId)}`;

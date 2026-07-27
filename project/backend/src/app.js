@@ -50,6 +50,16 @@ function bindingStatus(user) {
   return 'unbound';
 }
 
+function decodeTargetKey(value) {
+  const key = String(value || '');
+  try {
+    // Some Cloud Run gateways forward an already-escaped dynamic path segment.
+    return decodeURIComponent(key);
+  } catch (_error) {
+    return key;
+  }
+}
+
 function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }), wechatAuth = createWechatAuth(), testIdentityLoginEnabled = process.env.ENABLE_TEST_IDENTITY_LOGIN === '1' } = {}) {
   if (!db) throw new Error('createApp requires an initialized database connection');
   const repository = createRepository(db);
@@ -80,7 +90,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   function entityByKey(table, param, label) {
     const type = table === 'courses' ? 'course' : 'teacher';
     return asyncHandler(async (req, res, next) => {
-      const entity = await repository.findTarget(type, req.params[param]);
+      const entity = await repository.findTarget(type, decodeTargetKey(req.params[param]));
       if (!entity) return apiError(res, 404, 'TARGET_NOT_FOUND', `${label}不存在`);
       req.target = entity;
       next();
