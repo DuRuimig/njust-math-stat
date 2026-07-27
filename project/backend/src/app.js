@@ -55,6 +55,9 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   const repository = createRepository(db);
   const app = express();
   app.disable('x-powered-by');
+  // Cloud Run terminates one trusted proxy before this process. Without this,
+  // express-rate-limit rejects every cloud call carrying X-Forwarded-For.
+  app.set('trust proxy', 1);
   app.use(helmet());
   app.use(cors({ origin: env === 'production' ? false : true }));
   app.use(express.json({ limit: '16kb' }));

@@ -89,6 +89,16 @@ function expectAnonymous(comment) {
 }
 
 describe('v1 API 契约', () => {
+  it('接受云托管代理附加的 X-Forwarded-For 请求头', async () => {
+    const response = await request(app)
+      .post(`${v1}/auth/test-identity`)
+      .set('X-Forwarded-For', '203.0.113.10')
+      .send({});
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('NOT_FOUND');
+  });
+
   it('43 个教师目录稳定键与 seed 口径一致', () => {
     expect(courseLibrary.teachers).toHaveLength(43);
     const directoryKeys = courseLibrary.teachers.map(teacherDirectoryKey);
