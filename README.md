@@ -22,9 +22,9 @@ npm run dev
 
 ## MySQL 生产准备（不自动执行）
 
-正式生产运行需要设置 `NODE_ENV=production`、`DB_DRIVER=mysql` 及 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`MYSQL_USER`、`MYSQL_PASSWORD`。请将实际值仅存入云端密钥管理服务，禁止写入仓库或镜像。体验版镜像显式设置 `DB_DRIVER=sqlite`，支持真实微信登录，但用户、会话和互动数据仅保存在当前容器实例中，不保证跨容器重建或扩缩容持久化。
+正式生产运行需要设置 `NODE_ENV=production`、`DB_DRIVER=mysql` 及 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`MYSQL_USER`、`MYSQL_PASSWORD`。微信云托管现有的 `MYSQL_ADDRESS=host:port`、`MYSQL_USERNAME` 可分别替代前两个连接变量。请将实际值仅存入云端密钥管理服务，禁止写入仓库或镜像。体验版镜像显式设置 `DB_DRIVER=sqlite`，支持真实微信登录，但用户、会话和互动数据仅保存在当前容器实例中，不保证跨容器重建或扩缩容持久化。
 
-应用启动不会执行 MySQL 建表或基础数据导入。已获得授权并在目标环境完成复核后，才可显式执行以下命令；两个命令都必须设置 `MYSQL_EXECUTE=1`，否则会在连接前明确拒绝：
+应用启动不会执行 MySQL 建表或基础数据导入。已获得授权并在目标环境完成复核后，才可显式执行以下命令；两个命令都必须设置 `MYSQL_EXECUTE=1`，否则会在连接前明确拒绝。迁移命令会创建 `MYSQL_DATABASE` 指定的数据库（若尚不存在），然后应用幂等迁移：
 
 ```bash
 cd project/backend

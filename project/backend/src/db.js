@@ -12,18 +12,27 @@ function sqliteDatabase(filename = process.env.DATABASE_PATH || defaultPath) {
 }
 
 function mysqlConfigFromEnv(env = process.env) {
-  const required = ['MYSQL_HOST', 'MYSQL_DATABASE', 'MYSQL_USER', 'MYSQL_PASSWORD'];
-  const missing = required.filter((name) => !env[name]);
+  const address = String(env.MYSQL_HOST || env.MYSQL_ADDRESS || '').trim();
+  const username = String(env.MYSQL_USER || env.MYSQL_USERNAME || '').trim();
+  const [host, addressPort] = address.split(':');
+  const database = String(env.MYSQL_DATABASE || '').trim();
+  const missing = [
+    !host && 'MYSQL_HOST',
+    !database && 'MYSQL_DATABASE',
+    !username && 'MYSQL_USER',
+    !env.MYSQL_PASSWORD && 'MYSQL_PASSWORD',
+  ].filter(Boolean);
   if (missing.length) throw new Error(`MySQL configuration is incomplete: ${missing.join(', ')}`);
-  const port = Number(env.MYSQL_PORT || 3306);
+  if (!/^[A-Za-z0-9_]{1,64}$/.test(database)) throw new Error('MYSQL_DATABASE must use letters, numbers, or underscores only');
+  const port = Number(env.MYSQL_PORT || addressPort || 3306);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('MYSQL_PORT must be a valid TCP port');
   const connectionLimit = Number(env.MYSQL_CONNECTION_LIMIT || 10);
   if (!Number.isInteger(connectionLimit) || connectionLimit < 1 || connectionLimit > 100) throw new Error('MYSQL_CONNECTION_LIMIT must be an integer between 1 and 100');
   return {
-    host: env.MYSQL_HOST,
+    host,
     port,
-    database: env.MYSQL_DATABASE,
-    user: env.MYSQL_USER,
+    database,
+    user: username,
     password: env.MYSQL_PASSWORD,
     // MySQL's default FOUND_ROWS flag reports duplicate no-op inserts as affected.
     // Disable it so duplicate-like behavior matches SQLite's `changes` result.

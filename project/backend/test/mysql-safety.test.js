@@ -28,6 +28,21 @@ describe('MySQL 运维命令安全开关', () => {
     expect(config.flags).toBe('-FOUND_ROWS');
   });
 
+  it('兼容云托管提供的地址和用户名变量', () => {
+    const config = mysqlConfigFromEnv({
+      MYSQL_ADDRESS: 'mysql.internal:3307',
+      MYSQL_DATABASE: 'njust_math_stat',
+      MYSQL_USERNAME: 'service_user',
+      MYSQL_PASSWORD: 'test-only',
+    });
+    expect(config).toMatchObject({
+      host: 'mysql.internal',
+      port: 3307,
+      database: 'njust_math_stat',
+      user: 'service_user',
+    });
+  });
+
   it('体验版可在生产模式下显式使用 SQLite', async () => {
     const databasePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'njust-preview-')), 'preview.sqlite');
     const db = await openDatabase({ NODE_ENV: 'production', DB_DRIVER: 'sqlite', DATABASE_PATH: databasePath });

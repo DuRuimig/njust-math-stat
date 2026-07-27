@@ -11,8 +11,14 @@ const { mysqlConfigFromEnv } = require(path.join(root, 'project/backend/src/db')
 const migrationDir = path.join(root, 'database/migrations/mysql');
 
 async function main() {
-  const { waitForConnections, connectionLimit, queueLimit, ...connectionConfig } = mysqlConfigFromEnv();
-  const connection = await mysql.createConnection({ ...connectionConfig, multipleStatements: true });
+  const { waitForConnections, connectionLimit, queueLimit, database, ...connectionConfig } = mysqlConfigFromEnv();
+  const bootstrapConnection = await mysql.createConnection(connectionConfig);
+  try {
+    await bootstrapConnection.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+  } finally {
+    await bootstrapConnection.end();
+  }
+  const connection = await mysql.createConnection({ ...connectionConfig, database, multipleStatements: true });
   try {
     await connection.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
       version VARCHAR(255) PRIMARY KEY,
