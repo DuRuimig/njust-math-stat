@@ -29,7 +29,10 @@ Page({
   },
 
   onLoad: function (options) {
-    this.sessionRequestEpoch = (this.sessionRequestEpoch || 0) + 1
+    this.sessionRequestEpoch = 0
+    this.feedbackSessionRevision = -1
+    this.courseFeedbackLoading = false
+    this.teacherFeedbackLoading = false
     var key = decodeURIComponent(options.key || "")
     var resolution = library.getCourseKeyResolution(key)
     var course = resolution.course
@@ -56,16 +59,33 @@ Page({
       keyResolution: resolution.status
     })
     wx.setNavigationBarTitle({ title: course.name })
-    this.loadFeedback(backendCourseKey(course))
-    this.loadTeacherFeedbackSummary(directoryTeachers)
+    this.refreshFeedback()
+  },
+
+  onShow: function () {
+    if (!this.data.course) return
+    var sessionChanged = this.feedbackSessionRevision !== api.getSessionRevision()
+    var courseNeedsRetry = !this.data.feedbackConnected && !this.courseFeedbackLoading
+    var teachersNeedRetry = this.data.directoryTeachers.length > 0 && !this.data.teacherFeedbackConnected && !this.teacherFeedbackLoading
+    if (sessionChanged || courseNeedsRetry || teachersNeedRetry) this.refreshFeedback()
+  },
+
+  refreshFeedback: function () {
+    if (!this.data.course) return
+    this.sessionRequestEpoch = (this.sessionRequestEpoch || 0) + 1
+    this.feedbackSessionRevision = api.getSessionRevision()
+    this.loadFeedback(backendCourseKey(this.data.course))
+    this.loadTeacherFeedbackSummary(this.data.directoryTeachers)
   },
 
   loadTeacherFeedbackSummary: function (teachers) {
     var page = this
     if (!teachers.length) {
+      this.teacherFeedbackLoading = false
       this.setData({ teacherFeedbackConnected: true })
       return
     }
+    this.teacherFeedbackLoading = true
     var requestEpoch = this.sessionRequestEpoch || 0
     api.getTeacherFeedbackSummary(teachers.map(function (teacher) { return teacher.directoryId })).then(function (response) {
       if (!page.isCurrentSessionRequest(requestEpoch)) return
@@ -88,8 +108,10 @@ Page({
           })
         })
       })
+      page.teacherFeedbackLoading = false
     }).catch(function (_error) {
       if (!page.isCurrentSessionRequest(requestEpoch)) return
+      page.teacherFeedbackLoading = false
       if (page.handleSessionInvalid(_error)) return
       page.setData({ teacherFeedbackConnected: false })
     })
@@ -97,6 +119,7 @@ Page({
 
   loadFeedback: function (courseKey) {
     var page = this
+    this.courseFeedbackLoading = true
     var requestEpoch = this.sessionRequestEpoch || 0
     api.getFeedback("courses", courseKey).then(function (feedback) {
       if (!page.isCurrentSessionRequest(requestEpoch)) return
@@ -109,8 +132,10 @@ Page({
           return { content: comment.content || "", createdAt: comment.createdAt || "" }
         }) : []
       })
+      page.courseFeedbackLoading = false
     }).catch(function (error) {
       if (!page.isCurrentSessionRequest(requestEpoch)) return
+      page.courseFeedbackLoading = false
       if (page.handleSessionInvalid(error)) return
       page.setData({
         feedbackConnected: false
@@ -138,8 +163,7 @@ Page({
           return Object.assign({}, teacher, { hasLiked: false, isLiking: false })
         })
       })
-      if (this.data.course) this.loadFeedback(backendCourseKey(this.data.course))
-      this.loadTeacherFeedbackSummary(this.data.directoryTeachers)
+      this.refreshFeedback()
       return true
     }
     this.sessionRequestEpoch = (this.sessionRequestEpoch || 0) + 1

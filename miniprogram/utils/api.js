@@ -8,6 +8,7 @@ var PROFILE_BINDING_PATH = API_PREFIX + "/profile/binding"
 var REQUEST_TIMEOUT = 8000
 var SESSION_STORAGE_KEY = "njust_math_stat_session"
 var sessionStorageBlocked = false
+var sessionRevision = 0
 
 function appConfig() {
   var app = typeof getApp === "function" ? getApp() : null
@@ -71,6 +72,7 @@ function clearSession() {
   sessionStorageBlocked = true
   try {
     wx.removeStorageSync(SESSION_STORAGE_KEY)
+    sessionRevision += 1
     return true
   } catch (_error) { return false }
 }
@@ -128,7 +130,12 @@ function persistSession(payload) {
     throw apiError("无法保存登录会话，请重试", "SESSION_STORAGE_UNAVAILABLE")
   }
   sessionStorageBlocked = false
+  sessionRevision += 1
   return payload
+}
+
+function getSessionRevision() {
+  return sessionRevision
 }
 
 function requestHeaders(options, requestSession) {
@@ -349,6 +356,7 @@ module.exports = {
   PROFILE_BINDING_PATH: PROFILE_BINDING_PATH,
   hasSession: hasSession,
   sessionMode: sessionMode,
+  getSessionRevision: getSessionRevision,
   clearSession: clearSession,
   persistSession: persistSession,
   loginWithWechat: loginWithWechat,

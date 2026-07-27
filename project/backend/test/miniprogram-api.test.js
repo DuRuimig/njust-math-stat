@@ -837,6 +837,36 @@ describe('教师目录页会话状态', () => {
 });
 
 describe('课程详情会话失效状态', () => {
+  it('先查看课程再进入测试身份后，会刷新课程和课程内教师的可写状态', async () => {
+    const pending = [];
+    const runtime = installCloudRuntime((options) => { pending.push(options); }, { initialSession: null });
+    const api = loadApi();
+    const page = createPage(loadCourseDetailPage());
+    global.wx.setNavigationBarTitle = () => {};
+
+    const course = require('../../../miniprogram/utils/library').getCourses()[0];
+    page.onLoad({ key: encodeURIComponent(course.key) });
+    expect(pending).toHaveLength(2);
+    pending[0].success({ statusCode: 200, data: { likeCount: 1, likedByMe: false, comments: [] } });
+    pending[1].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[1]) } });
+    await flushPromises();
+    await flushPromises();
+    expect(page.data).toMatchObject({ feedbackConnected: true, isLoggedIn: false });
+
+    api.persistSession({ token: 'test-identity-session', mode: 'test-identity', expiresInSeconds: 60 });
+    page.onShow();
+    expect(pending).toHaveLength(4);
+    expect(pending[2].header.Authorization).toBe('Bearer test-identity-session');
+    expect(pending[3].header.Authorization).toBe('Bearer test-identity-session');
+    pending[2].success({ statusCode: 200, data: { likeCount: 1, likedByMe: false, comments: [] } });
+    pending[3].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[3], { likedByMe: true }) } });
+    await flushPromises();
+    await flushPromises();
+
+    expect(page.data).toMatchObject({ feedbackConnected: true, teacherFeedbackConnected: true, isLoggedIn: true });
+    expect(page.data.directoryTeachers.every((teacher) => teacher.hasLiked === true)).toBe(true);
+  });
+
   it('旧反馈请求被新会话取代时使用新会话重新加载', async () => {
     const pending = [];
     const runtime = installCloudRuntime((options) => { pending.push(options); });
