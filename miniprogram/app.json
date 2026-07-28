@@ -4,7 +4,6 @@
     "pages/course-detail/index",
     "pages/teaching/index",
     "pages/teacher-detail/index",
-    "pages/ai/index",
     "pages/profile/index"
   ],
   "window": {
@@ -27,10 +26,6 @@
       {
         "pagePath": "pages/teaching/index",
         "text": "教师"
-      },
-      {
-        "pagePath": "pages/ai/index",
-        "text": "问答"
       },
       {
         "pagePath": "pages/profile/index",

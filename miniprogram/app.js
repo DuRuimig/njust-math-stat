@@ -1,6 +1,5 @@
 App({
   globalData: {
-    demoQuestions: [],
     // 体验版显式走云托管；本地开发需手动改回 "local"。
     apiMode: "cloud",
     // 当前体验版先使用姓名学号测试身份；真实微信登录保留到后续独立启用。
