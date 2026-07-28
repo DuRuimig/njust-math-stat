@@ -22,7 +22,7 @@ npm run dev
 
 ## MySQL 生产准备（不自动执行）
 
-正式生产运行需要设置 `NODE_ENV=production`、`DB_DRIVER=mysql` 及 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`MYSQL_USER`、`MYSQL_PASSWORD`。微信云托管现有的 `MYSQL_ADDRESS=host:port`、`MYSQL_USERNAME` 可分别替代前两个连接变量。请将实际值仅存入云端密钥管理服务，禁止写入仓库或镜像。体验版镜像显式设置 `DB_DRIVER=sqlite`，支持真实微信登录，但用户、会话和互动数据仅保存在当前容器实例中，不保证跨容器重建或扩缩容持久化。
+正式生产运行需要设置 `NODE_ENV=production`、`DB_DRIVER=mysql` 及 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`MYSQL_USER`、`MYSQL_PASSWORD`。微信云托管现有的 `MYSQL_ADDRESS=host:port`、`MYSQL_USERNAME` 可分别替代前两个连接变量。请将实际值仅存入云端密钥管理服务，禁止写入仓库或镜像。镜像默认仍使用 `DB_DRIVER=sqlite`，便于本地和独立体验构建；当前云托管体验版通过服务环境变量显式使用 MySQL，因此用户、会话、点赞和评论会保留在 MySQL 中，不随容器重建丢失。
 
 应用启动不会执行 MySQL 建表或基础数据导入。已获得授权并在目标环境完成复核后，才可显式执行以下命令；两个命令都必须设置 `MYSQL_EXECUTE=1`，否则会在连接前明确拒绝。迁移命令会创建 `MYSQL_DATABASE` 指定的数据库（若尚不存在），然后应用幂等迁移：
 
@@ -53,7 +53,7 @@ docker run --rm -p 8080:8080 njust-math-stat-backend
 
 当前云端体验版默认使用姓名和 12 位数字学号进入测试身份：`POST /api/v1/auth/test-identity` 只在服务端环境变量 `ENABLE_TEST_IDENTITY_LOGIN=1` 时开放。同一学号会回到同一测试账号；姓名不一致会被拒绝，不会覆盖原资料。这个入口仅用于内部体验，知道姓名和学号的人可能进入同一账号，不能当作学校统一身份认证或正式权限依据。
 
-测试身份成功后使用现有 7 天 Bearer 会话，可验证个人资料、点赞和匿名评论。云端开启体验版时只需设置非敏感开关 `ENABLE_TEST_IDENTITY_LOGIN=1`；不要因此配置真实 MySQL、`MYSQL_EXECUTE=1` 或微信 AppSecret。
+测试身份成功后使用现有 7 天 Bearer 会话，可验证个人资料、点赞和匿名评论。测试身份开关与 MySQL 配置彼此独立：当前体验版已使用 MySQL 持久化互动数据；`MYSQL_EXECUTE=1` 仅用于受控迁移命令，不能作为常驻服务环境变量；微信 AppSecret 也不应写入仓库或镜像。
 
 ## 后续真实微信登录
 
