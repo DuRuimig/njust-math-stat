@@ -8,6 +8,14 @@
 
   <view wx:if="{{feedbackStatus}}" class="feedback-status" role="alert"><text>{{feedbackStatus}}</text></view>
 
+  <view class="teacher-toolbar" aria-label="教师排序">
+    <text class="teacher-count">{{teacherCount}} 位教师</text>
+    <view class="sort-switch" role="tablist" aria-label="排序方式">
+      <button class="sort-option {{sortMode === 'default' ? 'selected' : ''}}" data-mode="default" bindtap="onSortModeChange" role="tab" aria-selected="{{sortMode === 'default'}}">默认</button>
+      <button class="sort-option {{sortMode === 'likes' ? 'selected' : ''}}" data-mode="likes" bindtap="onSortModeChange" role="tab" aria-selected="{{sortMode === 'likes'}}">点赞最多</button>
+    </view>
+  </view>
+
   <view wx:if="{{teacherCount}}" class="teacher-list">
     <view wx:for="{{teachers}}" wx:key="id" class="teacher-card surface" data-id="{{item.directoryId}}" bindtap="openTeacher">
       <view class="teacher-copy">

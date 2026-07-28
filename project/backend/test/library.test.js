@@ -29,8 +29,32 @@ describe('课程任课历史与最新教材', () => {
     expect(records.every((record) => record.scope === 'course' && !record.major)).toBe(true);
     expect(library.getTeacherByName('李超')).toMatchObject({
       name: '李超',
-      department: '未收录',
+      department: '数学系',
       title: '未收录',
+      advisorQualifications: '博士生导师',
     });
+  });
+
+  it('保留官网明确职称，并区分导师目录未列明与否定资格', () => {
+    expect(library.getTeacherByName('范金华')).toMatchObject({
+      department: '数学系',
+      title: '教授',
+      advisorQualifications: '博士生导师',
+    });
+    expect(library.getTeacherByName('冯敏')).toMatchObject({
+      title: '未收录',
+      advisorQualifications: '研究生院导师目录未列明（不作资格否定）',
+    });
+  });
+
+  it('教师目录可按点赞数降序排列，并稳定处理缺失点赞数', () => {
+    const teachers = library.sortTeachersByLikeCount([
+      { name: 'Charlie', likeCount: 0 },
+      { name: 'Alice', likeCount: 8 },
+      { name: 'Bob' },
+      { name: 'Dora', likeCount: 8 },
+    ]);
+
+    expect(teachers.map((teacher) => teacher.name)).toEqual(['Alice', 'Dora', 'Bob', 'Charlie']);
   });
 });

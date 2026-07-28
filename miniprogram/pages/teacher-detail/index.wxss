@@ -4,7 +4,8 @@
 .teacher-heading-copy .page-title { display: block; font-size: 42rpx; word-break: break-word; }
 .teacher-heading-copy .page-lead { display: block; margin-top: 4rpx; }
 .teacher-summary { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin-top: 26rpx; padding: 20rpx 22rpx; }
-.teacher-summary-copy { min-width: 0; }
+.teacher-summary-copy { display: flex; flex: 1; flex-wrap: wrap; gap: 18rpx 32rpx; min-width: 0; }
+.summary-field { min-width: 0; }
 .summary-label { display: block; color: var(--muted); font-size: 21rpx; font-weight: 600; }
 .summary-value { display: block; margin-top: 5rpx; color: var(--ink); font-size: 27rpx; font-weight: 700; }
 .like-control { display: inline-flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; min-width: 88rpx; min-height: 88rpx; padding: 8rpx 14rpx; box-sizing: border-box; border: 1rpx solid #d8dee9; border-radius: 10rpx; background: #fff; color: #707b8e; font-size: 22rpx; font-weight: 700; line-height: 1.15; text-align: center; }

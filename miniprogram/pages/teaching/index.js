@@ -14,6 +14,7 @@ function shouldShowSessionExpired(error) {
 Page({
   data: {
     query: "",
+    sortMode: "default",
     allTeachers: [],
     teachers: [],
     teacherCount: 0,
@@ -55,6 +56,7 @@ Page({
     var teachers = allTeachers.filter(function (teacher) {
       return !query || [teacher.name, teacher.department].join(" ").toLowerCase().indexOf(query) >= 0
     })
+    if (this.data.sortMode === "likes") teachers = library.sortTeachersByLikeCount(teachers)
     this.setData({
       allTeachers: allTeachers,
       teachers: teachers,
@@ -64,6 +66,13 @@ Page({
 
   onQueryInput: function (event) {
     this.setData({ query: event.detail.value })
+    this.applyFilter()
+  },
+
+  onSortModeChange: function (event) {
+    var sortMode = event.currentTarget.dataset.mode
+    if (sortMode !== "default" && sortMode !== "likes") return
+    this.setData({ sortMode: sortMode })
     this.applyFilter()
   },
 
@@ -184,10 +193,8 @@ Page({
     this.setData({
       allTeachers: this.data.allTeachers.map(function (teacher) {
         return teacher.directoryId === directoryId ? Object.assign({}, teacher, patch) : teacher
-      }),
-      teachers: this.data.teachers.map(function (teacher) {
-        return teacher.directoryId === directoryId ? Object.assign({}, teacher, patch) : teacher
       })
     })
+    this.applyFilter()
   }
 })

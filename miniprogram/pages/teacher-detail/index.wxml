@@ -10,8 +10,14 @@
 
     <view class="teacher-summary surface">
       <view class="teacher-summary-copy">
-        <text class="summary-label">职称</text>
-        <text class="summary-value">{{teacher.title}}</text>
+        <view class="summary-field">
+          <text class="summary-label">职称</text>
+          <text class="summary-value">{{teacher.title}}</text>
+        </view>
+        <view class="summary-field">
+          <text class="summary-label">导师资格</text>
+          <text class="summary-value">{{teacher.advisorQualifications}}</text>
+        </view>
       </view>
       <button class="like-control {{hasLiked ? 'liked' : ''}}" bindtap="likeTeacher" loading="{{isLiking}}" disabled="{{!isLoggedIn || isLiking}}" aria-label="{{hasLiked ? '取消点赞，点赞数 ' + likeCount : '点赞，点赞数 ' + likeCount}}">
         <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!hasLiked}}" class="like-heart-cutout"></view></view></view>

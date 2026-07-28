@@ -1,5 +1,12 @@
 .teaching-page .page-title { display: block; }
 .feedback-status { margin-bottom: 16rpx; padding: 16rpx 20rpx; border: 1rpx solid #edc9a8; border-radius: 10rpx; background: var(--orange-soft); color: #784125; font-size: 23rpx; line-height: 1.5; }
+.teacher-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin: 18rpx 0 14rpx; }
+.teacher-count { flex: 1; min-width: 0; color: var(--ink-secondary); font-size: 23rpx; }
+.sort-switch { display: flex; flex: 0 0 auto; gap: 4rpx; padding: 4rpx; border: 1rpx solid var(--line); border-radius: 8rpx; background: #fafbfe; }
+.sort-option { min-width: 100rpx; min-height: 54rpx; margin: 0; padding: 0 14rpx; border: 0; border-radius: 6rpx; background: transparent; color: var(--ink-secondary); font-size: 22rpx; line-height: 54rpx; }
+.sort-option::after { border: 0; }
+.sort-option.selected { background: #fff; box-shadow: 0 1rpx 5rpx rgba(39, 56, 96, .12); color: var(--indigo-strong); font-weight: 700; }
+.sort-option:active { background: #eef1fb; }
 .teacher-list { display: flex; flex-direction: column; gap: 14rpx; }
 .teacher-card { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 20rpx; }
 .teacher-card:active { background: #f8f9fd; }

@@ -510,6 +510,10 @@ function getTeacherOfferingGroupsForCourse(course) {
 }
 
 function advisorText(teacher) {
+  var roles = teacher.graduateAdvisorRoles
+  if (Array.isArray(roles)) {
+    return roles.length ? roles.join("；") : "研究生院导师目录未列明（不作资格否定）"
+  }
   var value = teacher.graduateAdvisor0701 || teacher.advisorQualifications || teacher.advisorQualification || teacher.advisorStatus
   if (Array.isArray(value)) {
     return value.join("；") || "未收录"
@@ -540,6 +544,16 @@ function getTeachers() {
   var data = currentLibrary()
   return asArray(data.teachers).map(normalizeTeacher).sort(function (left, right) {
     return left.name.localeCompare(right.name, "zh-CN")
+  })
+}
+
+function sortTeachersByLikeCount(teachers) {
+  return asArray(teachers).slice().sort(function (left, right) {
+    var leftLikeCount = Number(left && left.likeCount)
+    var rightLikeCount = Number(right && right.likeCount)
+    leftLikeCount = Number.isFinite(leftLikeCount) ? leftLikeCount : 0
+    rightLikeCount = Number.isFinite(rightLikeCount) ? rightLikeCount : 0
+    return rightLikeCount - leftLikeCount || asText(left && left.name, "").localeCompare(asText(right && right.name, ""), "zh-CN")
   })
 }
 
@@ -650,6 +664,7 @@ module.exports = {
   getOfferingsForCourse: getOfferingsForCourse,
   getTeacherOfferingGroupsForCourse: getTeacherOfferingGroupsForCourse,
   getTeachers: getTeachers,
+  sortTeachersByLikeCount: sortTeachersByLikeCount,
   getTeacherById: getTeacherById,
   getTeacherByName: getTeacherByName,
   getTeacherByDirectoryId: getTeacherByDirectoryId,
