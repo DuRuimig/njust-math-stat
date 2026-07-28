@@ -32,9 +32,9 @@ MYSQL_EXECUTE=1 npm run db:mysql:migrate
 MYSQL_EXECUTE=1 npm run db:mysql:seed
 ```
 
-MySQL seed 只导入课程定义和教师目录，不导入本地 SQLite 中的 users、sessions、likes、comments 或 profile 变更申请。迁移包含管理员准备表 `roles`、`user_roles`、`admin_audit_logs`，但不预置角色、不分配管理员、也不开放管理员 API。
+MySQL seed 只导入课程定义和教师目录，不导入本地 SQLite 中的 users、sessions、likes、comments 或 profile 变更申请。迁移会创建管理员角色、审计日志及唯一主管理员记录所需的表，但不会写入任何人的姓名或学号。
 
-微信云托管没有容器终端时，可临时配置 `MYSQL_BOOTSTRAP_ON_START=1` 并保持 `DB_DRIVER=sqlite` 发布一次。该镜像启动时会显式运行上述迁移和 seed，成功后继续启动 SQLite 服务；确认数据已创建后必须删除此开关，再单独设置 `DB_DRIVER=mysql` 发布。开关为 `0` 或不存在时，应用不会连接 MySQL 或执行迁移。
+微信云托管没有容器终端时，可临时配置 `MYSQL_BOOTSTRAP_ON_START=1` 发布一次。镜像会先显式运行上述 MySQL migration 和 seed，再按现有 `DB_DRIVER` 启动服务；确认迁移成功后必须删除此开关并重新发布。开关为 `0` 或不存在时，应用启动阶段不会主动执行 MySQL migration 或 seed。
 
 ## 云托管镜像构建
 
@@ -55,6 +55,8 @@ docker run --rm -p 8080:8080 njust-math-stat-backend
 
 测试身份成功后使用现有 7 天 Bearer 会话，可验证个人资料、点赞和匿名评论。测试身份开关与 MySQL 配置彼此独立：当前体验版已使用 MySQL 持久化互动数据；`MYSQL_EXECUTE=1` 仅用于受控迁移命令，不能作为常驻服务环境变量；微信 AppSecret 也不应写入仓库或镜像。
 
+管理员分为一名主管理员和若干普通管理员。普通管理员可更正普通用户身份、封禁普通账号和删除违规评论；只有主管理员可授予或撤销普通管理员，并将主管理员身份移交给另一名已登录且未封禁的用户。移交后原主管理员保留普通管理员身份。首次主管理员只在系统尚未存在主管理员时由云端初始化配置指定，完成初始化后应删除该临时配置。
+
 ## 后续真实微信登录
 
 小程序云模式调用 `wx.login` 获取一次性 `code`，通过既有 `wx.cloud.callContainer` 发送给 `POST /api/v1/auth/wechat`。服务端使用云环境变量中的凭据请求微信 `jscode2session`，只信任微信服务端响应的 OpenID；客户端提交的 OpenID、用户 ID 或资料字段均不会作为身份依据。服务端将内部命名空间化账号标识关联到现有 SQLite `users` 表，并返回 7 天有效、数据库仅保存哈希的随机 Bearer 会话。小程序仅保存 token、模式和过期时间；重启后会复用未过期会话，收到 `SESSION_INVALID` 或本地到期后会清除会话并要求重新登录。
@@ -68,9 +70,9 @@ docker run --rm -p 8080:8080 njust-math-stat-backend
 
 仅开发环境可通过 `POST /api/v1/dev/sessions` 创建未绑定的本地开发测试会话；随后使用该会话的 `Authorization: Bearer <token>` 调用 `POST /api/v1/profile/binding`，完成首次姓名和学号绑定。该能力不是生产认证方案。除匿名读取反馈外，API 使用 `Authorization: Bearer <token>` 鉴权。
 
-生产环境中 `/api/v1/dev/sessions` 返回 404；管理员 API 仍未配置。
+生产环境中 `/api/v1/dev/sessions` 返回 404；管理员 API 使用同一 Bearer 会话，并在服务端逐次校验管理员或主管理员权限。
 
-## 小程序云托管调用准备（未部署）
+## 小程序云托管调用
 
 当前体验版显式使用云托管调用。云托管配置只包含环境与服务标识，不包含密钥、数据库连接信息或用户数据；本地开发时可将 `apiMode` 手动切回 `local`，调用 `http://127.0.0.1:2001`。
 
@@ -80,4 +82,4 @@ docker run --rm -p 8080:8080 njust-math-stat-backend
 
 云模式通过 `wx.cloud.callContainer` 的 `config.env` 与 `service` 参数调用服务，绝不会使用 `127.0.0.1`。当前默认 `authMode: "test-identity"`，个人资料、点赞与匿名评论使用测试身份的云托管 Bearer 会话；真实微信登录代码保留但当前不显示入口。云托管的调用路由信息不被当作用户身份凭据；后续微信版才由服务端 `jscode2session` 校验结果建立真实身份。
 
-这只完成客户端调用准备：没有部署服务、修改云环境、接入 MySQL 或验证真实云调用。切换后的发布前检查与限制见 [`doc/cloud-container-integration.md`](doc/cloud-container-integration.md)。
+当前体验版已经通过云托管调用生产服务并使用 MySQL 持久化互动数据。真实微信登录仍保持关闭，切换认证模式前的检查与限制见 [`doc/cloud-container-integration.md`](doc/cloud-container-integration.md)。

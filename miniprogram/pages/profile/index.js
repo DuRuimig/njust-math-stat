@@ -37,6 +37,7 @@ Page({
     isEditingProfile: false,
     isSavingProfile: false,
     isAdmin: false,
+    isPrimaryAdmin: false,
     adminQuery: "",
     adminUsers: [],
     adminEditingUserId: "",
@@ -44,7 +45,10 @@ Page({
     adminEditingStudentNumber: "",
     isSearchingAdminUsers: false,
     isSavingAdminIdentity: false,
-    adminStatusChangingUserId: ""
+    adminStatusChangingUserId: "",
+    adminRoleChangingUserId: "",
+    primaryTransferUserId: "",
+    currentUserId: ""
   },
 
   onShow: function () {
@@ -78,6 +82,7 @@ Page({
         isEditingProfile: false,
         isSavingProfile: false,
         isAdmin: false,
+        isPrimaryAdmin: false,
         adminQuery: "",
         adminUsers: [],
         adminEditingUserId: "",
@@ -85,7 +90,10 @@ Page({
         adminEditingStudentNumber: "",
         isSearchingAdminUsers: false,
         isSavingAdminIdentity: false,
-        adminStatusChangingUserId: ""
+        adminStatusChangingUserId: "",
+        adminRoleChangingUserId: "",
+        primaryTransferUserId: "",
+        currentUserId: ""
       })
       return
     }
@@ -114,13 +122,17 @@ Page({
         isBindingProfile: false,
         isSavingProfile: false,
         isAdmin: Boolean(profile.isAdmin),
+        isPrimaryAdmin: Boolean(profile.isPrimaryAdmin),
+        currentUserId: profile.userId || "",
         adminUsers: profile.isAdmin ? page.data.adminUsers : [],
         adminEditingUserId: profile.isAdmin ? page.data.adminEditingUserId : "",
         adminEditingName: profile.isAdmin ? page.data.adminEditingName : "",
         adminEditingStudentNumber: profile.isAdmin ? page.data.adminEditingStudentNumber : "",
         isSearchingAdminUsers: false,
         isSavingAdminIdentity: false,
-        adminStatusChangingUserId: ""
+        adminStatusChangingUserId: "",
+        adminRoleChangingUserId: "",
+        primaryTransferUserId: ""
       })
     }).catch(function (error) {
       if (!page.isCurrentSessionRequest(requestEpoch)) return
@@ -132,7 +144,9 @@ Page({
         isSavingProfile: false,
         isSearchingAdminUsers: false,
         isSavingAdminIdentity: false,
-        adminStatusChangingUserId: ""
+        adminStatusChangingUserId: "",
+        adminRoleChangingUserId: "",
+        primaryTransferUserId: ""
       })
     })
   },
@@ -170,6 +184,7 @@ Page({
       isEditingProfile: false,
       isSavingProfile: false,
       isAdmin: false,
+      isPrimaryAdmin: false,
       adminQuery: "",
       adminUsers: [],
       adminEditingUserId: "",
@@ -177,7 +192,10 @@ Page({
       adminEditingStudentNumber: "",
       isSearchingAdminUsers: false,
       isSavingAdminIdentity: false,
-      adminStatusChangingUserId: ""
+      adminStatusChangingUserId: "",
+      adminRoleChangingUserId: "",
+      primaryTransferUserId: "",
+      currentUserId: ""
     })
     return true
   },
@@ -296,6 +314,10 @@ Page({
     var userId = event.currentTarget.dataset.id
     var user = this.data.adminUsers.filter(function (item) { return item.id === userId })[0]
     if (!user) return
+    if (user.isAdmin && !this.data.isPrimaryAdmin) {
+      wx.showToast({ title: "普通管理员不能修改其他管理员", icon: "none" })
+      return
+    }
     this.setData({
       adminEditingUserId: user.id,
       adminEditingName: user.name || "",
@@ -333,7 +355,7 @@ Page({
     var page = this
     var userId = event.currentTarget.dataset.id
     var currentlyBanned = Boolean(event.currentTarget.dataset.banned)
-    if (!this.data.isAdmin || !userId || this.data.adminStatusChangingUserId) return
+    if (!this.data.isAdmin || !userId || this.data.adminStatusChangingUserId || this.data.adminRoleChangingUserId || this.data.primaryTransferUserId) return
     wx.showModal({
       title: currentlyBanned ? "解除封禁" : "封禁账号",
       content: currentlyBanned ? "解除后，该用户可使用已绑定的身份重新登录。" : "封禁后，该用户会立即退出，且不能再次登录。",
@@ -355,6 +377,73 @@ Page({
           if (!page.isCurrentSessionRequest(requestEpoch)) return
           if (page.showSessionExpired(error)) return
           page.setData({ adminStatusChangingUserId: "" })
+          wx.showToast({ title: serviceMessage(error), icon: "none" })
+        })
+      }
+    })
+  },
+
+  toggleAdminUserRole: function (event) {
+    var page = this
+    var userId = event.currentTarget.dataset.id
+    var currentlyAdmin = Boolean(event.currentTarget.dataset.admin)
+    if (!this.data.isPrimaryAdmin || !userId || userId === this.data.currentUserId || this.data.adminRoleChangingUserId || this.data.adminStatusChangingUserId || this.data.primaryTransferUserId) return
+    wx.showModal({
+      title: currentlyAdmin ? "撤销管理员" : "设为管理员",
+      content: currentlyAdmin ? "撤销后，该用户将无法管理账号和评论。" : "授予后，该用户可以管理账号和评论。",
+      success: function (result) {
+        if (!result.confirm) return
+        var requestEpoch = page.sessionRequestEpoch || 0
+        page.setData({ adminRoleChangingUserId: userId })
+        api.updateAdminUserRole(userId, !currentlyAdmin).then(function (response) {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          var user = response.user || {}
+          page.setData({
+            adminUsers: page.data.adminUsers.map(function (item) {
+              return item.id === userId ? Object.assign({}, item, { isAdmin: Boolean(user.isAdmin) }) : item
+            }),
+            adminRoleChangingUserId: ""
+          })
+          wx.showToast({ title: user.isAdmin ? "已设为管理员" : "已撤销管理员", icon: "success" })
+        }).catch(function (error) {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          if (page.showSessionExpired(error)) return
+          page.setData({ adminRoleChangingUserId: "" })
+          wx.showToast({ title: serviceMessage(error), icon: "none" })
+        })
+      }
+    })
+  },
+
+  transferPrimaryAdmin: function (event) {
+    var page = this
+    var userId = event.currentTarget.dataset.id
+    var user = this.data.adminUsers.filter(function (item) { return item.id === userId })[0]
+    if (!this.data.isPrimaryAdmin || !user || user.id === this.data.currentUserId || user.isBanned || this.data.primaryTransferUserId || this.data.adminStatusChangingUserId || this.data.adminRoleChangingUserId) return
+    wx.showModal({
+      title: "移交主管理员",
+      content: "移交给“" + (user.name || user.studentNumber || "该用户") + "”后，你将保留普通管理员权限，只有对方可以继续管理管理员和再次移交。",
+      success: function (result) {
+        if (!result.confirm) return
+        var requestEpoch = page.sessionRequestEpoch || 0
+        page.setData({ primaryTransferUserId: userId })
+        api.transferPrimaryAdmin(userId).then(function (response) {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          var target = response.user || {}
+          page.setData({
+            isPrimaryAdmin: false,
+            adminUsers: page.data.adminUsers.map(function (item) {
+              if (item.id === userId) return Object.assign({}, item, { isAdmin: true, isPrimaryAdmin: true })
+              if (item.id === page.data.currentUserId) return Object.assign({}, item, { isPrimaryAdmin: false })
+              return item
+            }),
+            primaryTransferUserId: ""
+          })
+          wx.showToast({ title: target.isPrimaryAdmin ? "主管理员已移交" : "移交已完成", icon: "success" })
+        }).catch(function (error) {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          if (page.showSessionExpired(error)) return
+          page.setData({ primaryTransferUserId: "" })
           wx.showToast({ title: serviceMessage(error), icon: "none" })
         })
       }

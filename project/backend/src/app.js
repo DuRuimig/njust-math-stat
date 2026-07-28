@@ -38,6 +38,7 @@ const adminIdentitySchema = z.object({
   studentNumber: z.string().trim().regex(/^\d{12}$/),
 }).strict();
 const adminAccountStatusSchema = z.object({ banned: z.boolean() }).strict();
+const adminRoleSchema = z.object({ isAdmin: z.boolean() }).strict();
 const teacherSummaryQuerySchema = z.object({
   ids: z.string().max(6600).optional(),
 }).strict();
@@ -98,6 +99,10 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   }
   async function requireAdmin(req, res, next) {
     if (!await repository.isAdmin(req.user.id)) return apiError(res, 403, 'ADMIN_REQUIRED', '需要管理员权限');
+    next();
+  }
+  async function requirePrimaryAdmin(req, res, next) {
+    if (!await repository.isPrimaryAdmin(req.user.id)) return apiError(res, 403, 'PRIMARY_ADMIN_REQUIRED', '需要主管理员权限');
     next();
   }
   function entityByKey(table, param, label) {
@@ -213,7 +218,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
       return apiError(res, 409, 'TEST_IDENTITY_MISMATCH', '该学号已被不同姓名的测试身份使用');
     }
     if (user.is_banned) return apiError(res, 403, 'ACCOUNT_BANNED', '该账号已被管理员封禁');
-    if (initialAdminAccountId && accountId === initialAdminAccountId) await repository.ensureAdminRole(user.id);
+    if (initialAdminAccountId && accountId === initialAdminAccountId) await repository.ensureInitialPrimaryAdmin(user.id);
     const token = crypto.randomBytes(32).toString('base64url');
     await repository.createSession(tokenHash(token), user.id);
     res.status(201).json({ token, expiresInSeconds: 604800, mode: 'test-identity' });
@@ -232,13 +237,18 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     await repository.createSession(tokenHash(token), user.id);
     res.status(201).json({ token, expiresInSeconds: 604800, mode: 'development-test-only' });
   }));
-  api.get('/profile', asyncHandler(requireUser), asyncHandler(async (req, res) => res.json({
-    bindingStatus: bindingStatus(req.user),
-    nickname: req.user.nickname,
-    avatarUrl: req.user.avatar_url,
-    privateBinding: { name: req.user.legal_name, studentNumber: req.user.student_number },
-    isAdmin: await repository.isAdmin(req.user.id),
-  })));
+  api.get('/profile', asyncHandler(requireUser), asyncHandler(async (req, res) => {
+    if (initialAdminAccountId && req.user.account_id === initialAdminAccountId) await repository.ensureInitialPrimaryAdmin(req.user.id);
+    res.json({
+      userId: req.user.id,
+      bindingStatus: bindingStatus(req.user),
+      nickname: req.user.nickname,
+      avatarUrl: req.user.avatar_url,
+      privateBinding: { name: req.user.legal_name, studentNumber: req.user.student_number },
+      isAdmin: await repository.isAdmin(req.user.id),
+      isPrimaryAdmin: await repository.isPrimaryAdmin(req.user.id),
+    });
+  }));
   api.post('/profile/binding', asyncHandler(requireUser), asyncHandler(async (req, res) => {
     const parsed = bindingSchema.safeParse(req.body);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '姓名和学号均为首次绑定必填项');
@@ -247,11 +257,13 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (!result.changes) return apiError(res, 409, 'BINDING_ALREADY_EXISTS', '姓名和学号已绑定，身份资料修改入口待接入');
     const user = await repository.profile(req.user.id);
     res.status(201).json({
+      userId: req.user.id,
       bindingStatus: bindingStatus(user),
       nickname: user.nickname,
       avatarUrl: user.avatar_url,
       privateBinding: { name: user.legal_name, studentNumber: user.student_number },
       isAdmin: await repository.isAdmin(req.user.id),
+      isPrimaryAdmin: await repository.isPrimaryAdmin(req.user.id),
     });
   }));
   api.patch('/profile', asyncHandler(requireUser), asyncHandler(async (req, res) => {
@@ -272,16 +284,17 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     const parsed = adminUserQuerySchema.safeParse(req.query);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '请输入姓名或学号搜索用户');
     const items = await repository.listUsersForAdmin(parsed.data.q);
-    res.json({ items: items.map((user) => ({ id: user.id, name: user.legal_name, studentNumber: user.student_number, isBanned: Boolean(user.is_banned), createdAt: user.created_at })) });
+    res.json({ items: items.map((user) => ({ id: user.id, name: user.legal_name, studentNumber: user.student_number, isBanned: Boolean(user.is_banned), isAdmin: Boolean(user.is_admin), isPrimaryAdmin: Boolean(user.is_primary_admin), createdAt: user.created_at })) });
   }));
   api.patch('/admin/users/:userId/identity', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
     const parsed = adminIdentitySchema.safeParse(req.body);
     const userId = String(req.params.userId || '');
     if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '姓名和 12 位学号格式无效');
-    const result = await repository.adminUpdateIdentity(userId, parsed.data.name, parsed.data.studentNumber, testIdentityAccountId(parsed.data.studentNumber));
+    const result = await repository.adminUpdateIdentity(req.user.id, userId, parsed.data.name, parsed.data.studentNumber, testIdentityAccountId(parsed.data.studentNumber), crypto.randomUUID());
+    if (result.actorNotAdmin) return apiError(res, 403, 'ADMIN_REQUIRED', '需要管理员权限');
     if (result.missing) return apiError(res, 404, 'USER_NOT_FOUND', '用户不存在');
+    if (result.protectedAdmin) return apiError(res, 403, 'ADMIN_TARGET_PROTECTED', '普通管理员不能修改其他管理员');
     if (result.conflict) return apiError(res, 409, 'STUDENT_NUMBER_IN_USE', '该学号已被其他用户使用');
-    await repository.writeAdminAudit(crypto.randomUUID(), req.user.id, 'update_identity', 'user', userId);
     res.json({ user: { id: userId, name: parsed.data.name, studentNumber: parsed.data.studentNumber } });
   }));
   api.patch('/admin/users/:userId/account-status', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
@@ -289,10 +302,38 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     const userId = String(req.params.userId || '');
     if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '账号状态格式无效');
     if (parsed.data.banned && userId === req.user.id) return apiError(res, 400, 'SELF_BAN_FORBIDDEN', '不能封禁当前管理员账号');
-    const result = await repository.adminSetUserBanned(userId, parsed.data.banned);
+    if (await repository.isAdmin(userId) && !await repository.isPrimaryAdmin(req.user.id)) return apiError(res, 403, 'ADMIN_TARGET_PROTECTED', '普通管理员不能封禁其他管理员');
+    const result = await repository.adminSetUserBanned(req.user.id, userId, parsed.data.banned, crypto.randomUUID());
+    if (result.actorNotAdmin) return apiError(res, 403, 'ADMIN_REQUIRED', '需要管理员权限');
     if (result.missing) return apiError(res, 404, 'USER_NOT_FOUND', '用户不存在');
-    await repository.writeAdminAudit(crypto.randomUUID(), req.user.id, parsed.data.banned ? 'ban_user' : 'unban_user', 'user', userId);
+    if (result.selfBan) return apiError(res, 400, 'SELF_BAN_FORBIDDEN', '不能封禁当前管理员账号');
+    if (result.protectedAdmin) return apiError(res, 403, 'ADMIN_TARGET_PROTECTED', '普通管理员不能封禁其他管理员');
     res.json({ user: { id: userId, isBanned: parsed.data.banned } });
+  }));
+  api.patch('/admin/users/:userId/admin-role', asyncHandler(requireUser), asyncHandler(requirePrimaryAdmin), asyncHandler(async (req, res) => {
+    const parsed = adminRoleSchema.safeParse(req.body);
+    const userId = String(req.params.userId || '');
+    if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '管理员权限格式无效');
+    if (userId === req.user.id) return apiError(res, 400, 'SELF_ADMIN_ROLE_CHANGE_FORBIDDEN', '不能修改当前主管理员的管理员权限');
+    const result = await repository.adminSetUserRole(req.user.id, userId, parsed.data.isAdmin, crypto.randomUUID());
+    if (result.actorNotPrimary) return apiError(res, 403, 'PRIMARY_ADMIN_REQUIRED', '需要主管理员权限');
+    if (result.missing) return apiError(res, 404, 'USER_NOT_FOUND', '用户不存在');
+    if (result.banned) return apiError(res, 409, 'BANNED_USER_ROLE_CHANGE_FORBIDDEN', '请先解除该账号的封禁');
+    if (result.selfRole) return apiError(res, 400, 'SELF_ADMIN_ROLE_CHANGE_FORBIDDEN', '不能修改当前主管理员的管理员权限');
+    if (result.primaryAdmin) return apiError(res, 409, 'PRIMARY_ADMIN_ROLE_PROTECTED', '主管理员必须先移交权限');
+    res.json({ user: { id: userId, isAdmin: parsed.data.isAdmin } });
+  }));
+  api.patch('/admin/users/:userId/primary-admin', asyncHandler(requireUser), asyncHandler(requirePrimaryAdmin), asyncHandler(async (req, res) => {
+    const userId = String(req.params.userId || '');
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '主管理员目标无效');
+    if (userId === req.user.id) return apiError(res, 400, 'PRIMARY_ADMIN_ALREADY_ASSIGNED', '当前账号已经是主管理员');
+    const result = await repository.transferPrimaryAdmin(req.user.id, userId, crypto.randomUUID());
+    if (result.actorNotPrimary) return apiError(res, 403, 'PRIMARY_ADMIN_REQUIRED', '需要主管理员权限');
+    if (result.missing) return apiError(res, 404, 'USER_NOT_FOUND', '用户不存在');
+    if (result.banned) return apiError(res, 409, 'BANNED_USER_ROLE_CHANGE_FORBIDDEN', '请先解除该账号的封禁');
+    if (result.alreadyAssigned) return apiError(res, 400, 'PRIMARY_ADMIN_ALREADY_ASSIGNED', '当前账号已经是主管理员');
+    if (result.missingAssignment) return apiError(res, 409, 'PRIMARY_ADMIN_NOT_INITIALIZED', '主管理员尚未完成初始化');
+    res.json({ user: { id: userId, isAdmin: true, isPrimaryAdmin: true } });
   }));
   api.get('/teachers/feedback-summary', asyncHandler(optionalUser), asyncHandler(teacherFeedbackSummary));
   for (const config of [

@@ -281,11 +281,13 @@ function loginWithTestIdentity(identity, options) {
 function normalizeProfile(payload) {
   var profile = payload.profile || payload
   return {
+    userId: payload.userId || profile.userId || "",
     nickname: profile.nickname || "",
     avatarUrl: profile.avatarUrl || "",
     privateBinding: payload.privateBinding || profile.privateBinding || null,
     bindingStatus: payload.bindingStatus || profile.bindingStatus || "real-login-pending",
-    isAdmin: Boolean(payload.isAdmin || profile.isAdmin)
+    isAdmin: Boolean(payload.isAdmin || profile.isAdmin),
+    isPrimaryAdmin: Boolean(payload.isPrimaryAdmin || profile.isPrimaryAdmin)
   }
 }
 
@@ -377,6 +379,22 @@ function updateAdminUserStatus(userId, banned) {
   return request({ method: "PATCH", path: API_PREFIX + "/admin/users/" + encodeURIComponent(safeUserId) + "/account-status", data: { banned: banned } })
 }
 
+function updateAdminUserRole(userId, isAdmin) {
+  var safeUserId = cleanText(userId, 36)
+  if (!/^[0-9a-f-]{36}$/i.test(safeUserId) || typeof isAdmin !== "boolean") {
+    return Promise.reject(apiError("管理员权限无效", "INVALID_ADMIN_ROLE"))
+  }
+  return request({ method: "PATCH", path: API_PREFIX + "/admin/users/" + encodeURIComponent(safeUserId) + "/admin-role", data: { isAdmin: isAdmin } })
+}
+
+function transferPrimaryAdmin(userId) {
+  var safeUserId = cleanText(userId, 36)
+  if (!/^[0-9a-f-]{36}$/i.test(safeUserId)) {
+    return Promise.reject(apiError("主管理员目标无效", "INVALID_PRIMARY_ADMIN"))
+  }
+  return request({ method: "PATCH", path: API_PREFIX + "/admin/users/" + encodeURIComponent(safeUserId) + "/primary-admin" })
+}
+
 module.exports = {
   DEFAULT_BASE_URL: DEFAULT_BASE_URL,
   API_MODE_LOCAL: API_MODE_LOCAL,
@@ -405,5 +423,7 @@ module.exports = {
   deleteComment: deleteComment,
   searchAdminUsers: searchAdminUsers,
   updateAdminUserIdentity: updateAdminUserIdentity,
-  updateAdminUserStatus: updateAdminUserStatus
+  updateAdminUserStatus: updateAdminUserStatus,
+  updateAdminUserRole: updateAdminUserRole,
+  transferPrimaryAdmin: transferPrimaryAdmin
 }

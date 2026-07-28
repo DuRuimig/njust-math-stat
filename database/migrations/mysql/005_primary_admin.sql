@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS primary_admin_assignment (
+  singleton_key VARCHAR(16) PRIMARY KEY,
+  user_id CHAR(36) NOT NULL UNIQUE,
+  assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_primary_admin_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

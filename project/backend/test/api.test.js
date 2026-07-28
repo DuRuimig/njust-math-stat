@@ -23,7 +23,7 @@ const teacherDirectoryKey = (teacher) => {
 beforeAll(() => {
   const databasePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'njust-api-')), 'test.sqlite');
   db = sqliteDatabase(databasePath);
-  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql', '005_account_moderation.sql']) {
+  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql', '005_account_moderation.sql', '006_primary_admin.sql']) {
     db.exec(fs.readFileSync(path.resolve(__dirname, `../../../database/migrations/${migration}`), 'utf8'));
   }
   db.prepare('INSERT INTO courses (id, stable_key, code, normalized_name, name) VALUES (?, ?, ?, ?, ?)')
@@ -124,11 +124,13 @@ describe('v1 API 契约', () => {
     const profile = await request(app).get(`${v1}/profile`).set(auth(token));
     expect(profile.status).toBe(200);
     expect(profile.body).toEqual({
+      userId: expect.any(String),
       bindingStatus: 'unbound',
       nickname: '新同学',
       avatarUrl: null,
       privateBinding: { name: null, studentNumber: null },
       isAdmin: false,
+      isPrimaryAdmin: false,
     });
   });
 
@@ -326,11 +328,13 @@ describe('v1 API 契约', () => {
     const bound = await request(app).post(`${v1}/profile/binding`).set(auth(token)).send({ name: '测试姓名', studentNumber: '12345678' });
     expect(bound.status).toBe(201);
     expect(bound.body).toEqual({
+      userId: expect.any(String),
       bindingStatus: 'bound',
       nickname: '新同学',
       avatarUrl: null,
       privateBinding: { name: '测试姓名', studentNumber: '12345678' },
       isAdmin: false,
+      isPrimaryAdmin: false,
     });
 
     const profile = await request(app).get(`${v1}/profile`).set(auth(token));
@@ -436,7 +440,7 @@ describe('v1 API 契约', () => {
     const adminLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: adminName, studentNumber: adminStudentNumber });
     expect(adminLogin.status).toBe(201);
     const adminToken = adminLogin.body.token;
-    expect((await request(adminApp).get(`${v1}/profile`).set(auth(adminToken))).body).toMatchObject({ isAdmin: true });
+    expect((await request(adminApp).get(`${v1}/profile`).set(auth(adminToken))).body).toMatchObject({ isAdmin: true, isPrimaryAdmin: true });
 
     const memberNumber = '900000000002';
     const memberLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '普通测试', studentNumber: memberNumber });
@@ -455,9 +459,14 @@ describe('v1 API 契约', () => {
     const search = await request(adminApp).get(`${v1}/admin/users?q=${encodeURIComponent('普通测试')}`).set(auth(adminToken));
     expect(search.status).toBe(200);
     const member = search.body.items.find((item) => item.studentNumber === memberNumber);
-    expect(member).toMatchObject({ name: '普通测试' });
+    expect(member).toMatchObject({ name: '普通测试', isAdmin: false, isPrimaryAdmin: false });
     expect(member).not.toHaveProperty('accountId');
     const updatedNumber = '900000000003';
+    db.exec("CREATE TRIGGER fail_identity_audit BEFORE INSERT ON admin_audit_logs WHEN NEW.action = 'update_identity' BEGIN SELECT RAISE(ABORT, 'forced audit failure'); END");
+    const failedIdentityUpdate = await request(adminApp).patch(`${v1}/admin/users/${member.id}/identity`).set(auth(adminToken)).send({ name: '不应保存', studentNumber: updatedNumber });
+    expect(failedIdentityUpdate.status).toBe(500);
+    expect(db.prepare('SELECT legal_name, student_number FROM users WHERE id = ?').get(member.id)).toEqual({ legal_name: '普通测试', student_number: memberNumber });
+    db.exec('DROP TRIGGER fail_identity_audit');
     const update = await request(adminApp).patch(`${v1}/admin/users/${member.id}/identity`).set(auth(adminToken)).send({ name: '已更正测试', studentNumber: updatedNumber });
     expect(update.status).toBe(200);
     expect(update.body.user).toMatchObject({ id: member.id, name: '已更正测试', studentNumber: updatedNumber });
@@ -473,16 +482,68 @@ describe('v1 API 契约', () => {
     expect(blockedLogin.status).toBe(403);
     expect(blockedLogin.body.error.code).toBe('ACCOUNT_BANNED');
     expect((await request(adminApp).patch(`${v1}/admin/users/${member.id}/account-status`).set(auth(adminToken)).send({ banned: false })).status).toBe(200);
-    expect((await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber })).status).toBe(201);
+    const restoredLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber });
+    expect(restoredLogin.status).toBe(201);
+    const grantAdmin = await request(adminApp).patch(`${v1}/admin/users/${member.id}/admin-role`).set(auth(adminToken)).send({ isAdmin: true });
+    expect(grantAdmin.status).toBe(200);
+    expect(grantAdmin.body.user).toEqual({ id: member.id, isAdmin: true });
+    expect((await request(adminApp).get(`${v1}/profile`).set(auth(restoredLogin.body.token))).body).toMatchObject({ userId: member.id, isAdmin: true, isPrimaryAdmin: false });
+    expect((await request(app).patch(`${v1}/admin/users/${member.id}/admin-role`).set(auth(await session('other-student'))).send({ isAdmin: true })).status).toBe(403);
     const adminUserId = db.prepare('SELECT id FROM users WHERE account_id = ?').get(adminAccountId).id;
+    const regularAdminCannotManageRoles = await request(adminApp).patch(`${v1}/admin/users/${adminUserId}/admin-role`).set(auth(restoredLogin.body.token)).send({ isAdmin: true });
+    expect(regularAdminCannotManageRoles.status).toBe(403);
+    expect(regularAdminCannotManageRoles.body.error.code).toBe('PRIMARY_ADMIN_REQUIRED');
+    const regularAdminCannotBanPrimary = await request(adminApp).patch(`${v1}/admin/users/${adminUserId}/account-status`).set(auth(restoredLogin.body.token)).send({ banned: true });
+    expect(regularAdminCannotBanPrimary.status).toBe(403);
+    expect(regularAdminCannotBanPrimary.body.error.code).toBe('ADMIN_TARGET_PROTECTED');
+    const regularAdminCannotEditPrimary = await request(adminApp).patch(`${v1}/admin/users/${adminUserId}/identity`).set(auth(restoredLogin.body.token)).send({ name: adminName, studentNumber: adminStudentNumber });
+    expect(regularAdminCannotEditPrimary.status).toBe(403);
+    expect(regularAdminCannotEditPrimary.body.error.code).toBe('ADMIN_TARGET_PROTECTED');
+    const managedNumber = '900000000004';
+    const managedLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '待管理用户', studentNumber: managedNumber });
+    expect(managedLogin.status).toBe(201);
+    expect((await request(adminApp).post(coursePath('likes')).set(auth(managedLogin.body.token))).status).toBe(201);
+    const managedComment = await request(adminApp).post(coursePath('comments')).set(auth(managedLogin.body.token)).send({ content: '普通管理员处理的评论' });
+    const managedSearch = await request(adminApp).get(`${v1}/admin/users?q=${managedNumber}`).set(auth(restoredLogin.body.token));
+    expect(managedSearch.status).toBe(200);
+    const managedUser = managedSearch.body.items.find((item) => item.studentNumber === managedNumber);
+    expect((await request(adminApp).patch(`${v1}/admin/users/${managedUser.id}/account-status`).set(auth(restoredLogin.body.token)).send({ banned: true })).status).toBe(200);
+    expect((await request(adminApp).patch(`${v1}/admin/users/${managedUser.id}/account-status`).set(auth(restoredLogin.body.token)).send({ banned: false })).status).toBe(200);
+    expect((await request(adminApp).delete(`${coursePath('comments')}/${managedComment.body.comment.id}`).set(auth(restoredLogin.body.token))).status).toBe(204);
+    const revokeAdmin = await request(adminApp).patch(`${v1}/admin/users/${member.id}/admin-role`).set(auth(adminToken)).send({ isAdmin: false });
+    expect(revokeAdmin.status).toBe(200);
+    expect(revokeAdmin.body.user).toEqual({ id: member.id, isAdmin: false });
     const selfBan = await request(adminApp).patch(`${v1}/admin/users/${adminUserId}/account-status`).set(auth(adminToken)).send({ banned: true });
     expect(selfBan.status).toBe(400);
     expect(selfBan.body.error.code).toBe('SELF_BAN_FORBIDDEN');
+    const selfRoleChange = await request(adminApp).patch(`${v1}/admin/users/${adminUserId}/admin-role`).set(auth(adminToken)).send({ isAdmin: false });
+    expect(selfRoleChange.status).toBe(400);
+    expect(selfRoleChange.body.error.code).toBe('SELF_ADMIN_ROLE_CHANGE_FORBIDDEN');
+    db.exec("CREATE TRIGGER fail_primary_transfer_audit BEFORE INSERT ON admin_audit_logs WHEN NEW.action = 'transfer_primary_admin' BEGIN SELECT RAISE(ABORT, 'forced audit failure'); END");
+    const failedTransfer = await request(adminApp).patch(`${v1}/admin/users/${member.id}/primary-admin`).set(auth(adminToken));
+    expect(failedTransfer.status).toBe(500);
+    expect(db.prepare("SELECT user_id FROM primary_admin_assignment WHERE singleton_key = 'primary'").get()).toEqual({ user_id: adminUserId });
+    expect(db.prepare('SELECT 1 FROM user_roles WHERE user_id = ? AND role_id = ?').get(member.id, 'b2ab8a66-7151-4f49-9bf0-e4beeb3f5ea3')).toBeUndefined();
+    db.exec('DROP TRIGGER fail_primary_transfer_audit');
+    const transferPrimaryAdmin = await request(adminApp).patch(`${v1}/admin/users/${member.id}/primary-admin`).set(auth(adminToken));
+    expect(transferPrimaryAdmin.status).toBe(200);
+    expect(transferPrimaryAdmin.body.user).toEqual({ id: member.id, isAdmin: true, isPrimaryAdmin: true });
+    expect(db.prepare("SELECT singleton_key, user_id FROM primary_admin_assignment").all()).toEqual([{ singleton_key: 'primary', user_id: member.id }]);
+    expect((await request(adminApp).get(`${v1}/profile`).set(auth(restoredLogin.body.token))).body).toMatchObject({ isAdmin: true, isPrimaryAdmin: true });
+    expect((await request(adminApp).get(`${v1}/profile`).set(auth(adminToken))).body).toMatchObject({ isAdmin: true, isPrimaryAdmin: false });
+    const formerPrimaryCannotManageRoles = await request(adminApp).patch(`${v1}/admin/users/${member.id}/admin-role`).set(auth(adminToken)).send({ isAdmin: false });
+    expect(formerPrimaryCannotManageRoles.status).toBe(403);
+    expect(formerPrimaryCannotManageRoles.body.error.code).toBe('PRIMARY_ADMIN_REQUIRED');
+    const revokeFormerPrimary = await request(adminApp).patch(`${v1}/admin/users/${adminUserId}/admin-role`).set(auth(restoredLogin.body.token)).send({ isAdmin: false });
+    expect(revokeFormerPrimary.status).toBe(200);
+    expect((await request(adminApp).get(`${v1}/profile`).set(auth(adminToken))).body).toMatchObject({ isAdmin: false, isPrimaryAdmin: false });
 
-    const deleted = await request(adminApp).delete(`${coursePath('comments')}/${commentId}`).set(auth(adminToken));
+    const deleted = await request(adminApp).delete(`${coursePath('comments')}/${commentId}`).set(auth(restoredLogin.body.token));
     expect(deleted.status).toBe(204);
     expect((await request(adminApp).get(coursePath('feedback')).set(auth(adminToken))).body.comments.some((item) => item.id === commentId)).toBe(false);
     expect(db.prepare("SELECT action, target_type, target_id FROM admin_audit_logs WHERE action = 'delete_comment' AND target_id = ?").get(commentId)).toEqual({ action: 'delete_comment', target_type: 'course_comment', target_id: commentId });
+    expect(db.prepare("SELECT action FROM admin_audit_logs WHERE action = 'grant_admin_role' AND target_id = ?").get(member.id)).toEqual({ action: 'grant_admin_role' });
+    expect(db.prepare("SELECT action FROM admin_audit_logs WHERE action = 'transfer_primary_admin' AND target_id = ?").get(member.id)).toEqual({ action: 'transfer_primary_admin' });
   });
 
   it('接受真机传来的全角课程括号', async () => {

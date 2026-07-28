@@ -312,7 +312,7 @@ describe('个人中心会话状态', () => {
     expect(pending[1].header.Authorization).toBe('Bearer test-identity-token');
     pending[1].success({
       statusCode: 200,
-      data: { nickname: '新同学', bindingStatus: 'bound', privateBinding: { name: '测试姓名', studentNumber: '123456789012' } },
+      data: { userId: '11111111-1111-4111-8111-111111111111', nickname: '新同学', bindingStatus: 'bound', privateBinding: { name: '测试姓名', studentNumber: '123456789012' }, isAdmin: true, isPrimaryAdmin: true },
     });
     await flushPromises();
     await flushPromises();
@@ -321,6 +321,9 @@ describe('个人中心会话状态', () => {
       isLoggedIn: true,
       isTestIdentityMode: true,
       loginStatus: '测试身份',
+      currentUserId: '11111111-1111-4111-8111-111111111111',
+      isAdmin: true,
+      isPrimaryAdmin: true,
       studentName: '测试姓名',
       studentId: '123456789012',
     });
