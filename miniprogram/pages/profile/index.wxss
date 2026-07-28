@@ -30,7 +30,13 @@
 .admin-search-input { flex: 1; min-width: 0; }
 .admin-search-button { flex: 0 0 132rpx; min-width: 132rpx; margin: 0; padding: 0 12rpx; font-size: 24rpx; }
 .admin-user-list { display: flex; flex-direction: column; gap: 10rpx; }
-.admin-user-item { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 76rpx; padding: 14rpx 16rpx; border: 1rpx solid var(--line); border-radius: 8rpx; background: #fff; color: var(--ink); font-size: 24rpx; text-align: left; }
+.admin-user-wrap { display: flex; align-items: stretch; gap: 12rpx; }
+.admin-user-item { display: flex; flex: 1; align-items: center; justify-content: space-between; min-width: 0; min-height: 76rpx; padding: 14rpx 16rpx; border: 1rpx solid var(--line); border-radius: 8rpx; background: #fff; color: var(--ink); font-size: 24rpx; }
 .admin-user-item text:last-child { color: var(--muted); font-size: 22rpx; }
 .admin-user-item.selected { border-color: var(--indigo); background: var(--indigo-soft); }
+.admin-user-status { display: block; margin-top: 4rpx; color: #39704b; font-size: 20rpx; }
+.admin-user-status.banned { color: #b44b3b; }
+.admin-ban-button { flex: 0 0 132rpx; min-width: 132rpx; margin: 0; padding: 0 10rpx; border: 1rpx solid #d99a92; border-radius: 8rpx; background: #fff5f3; color: #a33f32; font-size: 22rpx; }
+.admin-ban-button::after { border: 0; }
+.admin-ban-button.unban { border-color: #89b89a; background: #f0f8f1; color: #39704b; }
 .admin-editor { display: flex; flex-direction: column; gap: 16rpx; padding-top: 4rpx; border-top: 1rpx solid var(--line); }

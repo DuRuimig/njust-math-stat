@@ -369,6 +369,14 @@ function updateAdminUserIdentity(userId, identity) {
   return request({ method: "PATCH", path: API_PREFIX + "/admin/users/" + encodeURIComponent(safeUserId) + "/identity", data: { name: name, studentNumber: studentNumber } })
 }
 
+function updateAdminUserStatus(userId, banned) {
+  var safeUserId = cleanText(userId, 36)
+  if (!/^[0-9a-f-]{36}$/i.test(safeUserId) || typeof banned !== "boolean") {
+    return Promise.reject(apiError("账号状态无效", "INVALID_ADMIN_ACCOUNT_STATUS"))
+  }
+  return request({ method: "PATCH", path: API_PREFIX + "/admin/users/" + encodeURIComponent(safeUserId) + "/account-status", data: { banned: banned } })
+}
+
 module.exports = {
   DEFAULT_BASE_URL: DEFAULT_BASE_URL,
   API_MODE_LOCAL: API_MODE_LOCAL,
@@ -396,5 +404,6 @@ module.exports = {
   postComment: postComment,
   deleteComment: deleteComment,
   searchAdminUsers: searchAdminUsers,
-  updateAdminUserIdentity: updateAdminUserIdentity
+  updateAdminUserIdentity: updateAdminUserIdentity,
+  updateAdminUserStatus: updateAdminUserStatus
 }

@@ -46,7 +46,7 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
   const targetSql = (type) => ({ table: `${type}s`, key: type === 'course' ? 'stable_key' : 'directory_key', column: `${type}_id` });
   const adminRoleId = 'b2ab8a66-7151-4f49-9bf0-e4beeb3f5ea3';
   return {
-    findSession: (hash) => one(`SELECT u.id, u.account_id, u.nickname, u.avatar_url, u.legal_name, u.student_number FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > CURRENT_TIMESTAMP`, hash),
+    findSession: (hash) => one(`SELECT u.id, u.account_id, u.nickname, u.avatar_url, u.legal_name, u.student_number FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > CURRENT_TIMESTAMP AND u.is_banned = 0`, hash),
     findTarget: (type, key) => {
       const target = targetSql(type);
       return one(`SELECT id, ${target.key} AS target_key FROM ${target.table} WHERE ${target.key} = ?`, key);
@@ -84,34 +84,34 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
       return rows.map((row) => ({ teacherId: row.teacherId, likeCount: Number(row.likeCount), ...(liked ? { likedByMe: liked.has(row.teacherId) } : {}) }));
     },
     allTeacherKeys: () => many('SELECT directory_key FROM teachers ORDER BY directory_key'),
-    findUserByAccount: (accountId) => one('SELECT id FROM users WHERE account_id = ?', accountId),
+    findUserByAccount: (accountId) => one('SELECT id, is_banned FROM users WHERE account_id = ?', accountId),
     createUser: (id, accountId) => run('INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)', id, accountId, '新同学'),
     findOrCreateTestIdentity: async (accountId, id, name, studentNumber) => {
-      const existing = await one('SELECT id, legal_name, student_number FROM users WHERE account_id = ?', accountId);
+      const existing = await one('SELECT id, legal_name, student_number, is_banned FROM users WHERE account_id = ?', accountId);
       if (existing) return existing;
 
-      const candidate = { id, legal_name: name, student_number: studentNumber };
+      const candidate = { id, legal_name: name, student_number: studentNumber, is_banned: 0 };
       try {
         await run('INSERT INTO users (id, account_id, nickname, legal_name, student_number) VALUES (?, ?, ?, ?, ?)', candidate.id, accountId, '新同学', name, studentNumber);
         return candidate;
       } catch (error) {
         if (!isUserAccountUniqueConflict(error)) throw error;
-        const concurrentUser = await one('SELECT id, legal_name, student_number FROM users WHERE account_id = ?', accountId);
+        const concurrentUser = await one('SELECT id, legal_name, student_number, is_banned FROM users WHERE account_id = ?', accountId);
         if (concurrentUser) return concurrentUser;
         throw error;
       }
     },
     findOrCreateUser: async (accountId, id) => {
-      const existing = await one('SELECT id FROM users WHERE account_id = ?', accountId);
+      const existing = await one('SELECT id, is_banned FROM users WHERE account_id = ?', accountId);
       if (existing) return existing;
 
-      const candidate = { id };
+      const candidate = { id, is_banned: 0 };
       try {
         await run('INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)', candidate.id, accountId, '新同学');
         return candidate;
       } catch (error) {
         if (!isUserAccountUniqueConflict(error)) throw error;
-        const concurrentUser = await one('SELECT id FROM users WHERE account_id = ?', accountId);
+        const concurrentUser = await one('SELECT id, is_banned FROM users WHERE account_id = ?', accountId);
         if (concurrentUser) return concurrentUser;
         throw error;
       }
@@ -128,7 +128,7 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     isAdmin: async (userId) => Boolean(await one("SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? AND r.role_key = 'admin'", userId)),
     listUsersForAdmin: async (query) => {
       const pattern = `%${query}%`;
-      return many('SELECT id, legal_name, student_number, created_at FROM users WHERE legal_name LIKE ? OR student_number LIKE ? ORDER BY updated_at DESC LIMIT 50', pattern, pattern);
+      return many('SELECT id, legal_name, student_number, is_banned, created_at FROM users WHERE legal_name LIKE ? OR student_number LIKE ? ORDER BY updated_at DESC LIMIT 50', pattern, pattern);
     },
     adminUpdateIdentity: async (userId, name, studentNumber, accountId) => {
       const existing = await one('SELECT id FROM users WHERE account_id = ? AND id <> ?', accountId, userId);
@@ -141,6 +141,12 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
         throw error;
       }
       await run('DELETE FROM sessions WHERE user_id = ?', userId);
+      return { updated: true };
+    },
+    adminSetUserBanned: async (userId, banned) => {
+      const result = await run('UPDATE users SET is_banned = ?, banned_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE NULL END, updated_at = CURRENT_TIMESTAMP WHERE id = ?', banned ? 1 : 0, banned ? 1 : 0, userId);
+      if (!result.changes) return { missing: true };
+      if (banned) await run('DELETE FROM sessions WHERE user_id = ?', userId);
       return { updated: true };
     },
     writeAdminAudit: (id, actorUserId, action, targetType, targetId) => run('INSERT INTO admin_audit_logs (id, actor_user_id, action, target_type, target_id) VALUES (?, ?, ?, ?, ?)', id, actorUserId, action, targetType, targetId || null),

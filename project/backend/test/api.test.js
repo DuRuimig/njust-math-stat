@@ -23,7 +23,7 @@ const teacherDirectoryKey = (teacher) => {
 beforeAll(() => {
   const databasePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'njust-api-')), 'test.sqlite');
   db = sqliteDatabase(databasePath);
-  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql']) {
+  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql', '005_account_moderation.sql']) {
     db.exec(fs.readFileSync(path.resolve(__dirname, `../../../database/migrations/${migration}`), 'utf8'));
   }
   db.prepare('INSERT INTO courses (id, stable_key, code, normalized_name, name) VALUES (?, ?, ?, ?, ?)')
@@ -52,11 +52,11 @@ function forcedSqliteUniqueConflictDatabase() {
     database: {
       kind: 'sqlite',
       prepare(sql) {
-        if (sql === 'SELECT id FROM users WHERE account_id = ?') {
+        if (sql === 'SELECT id, is_banned FROM users WHERE account_id = ?') {
           return {
             get() {
               state.userLookups += 1;
-              return state.userLookups === 1 ? undefined : { id: 'existing-user' };
+              return state.userLookups === 1 ? undefined : { id: 'existing-user', is_banned: 0 };
             },
           };
         }
@@ -462,7 +462,22 @@ describe('v1 API 契约', () => {
     expect(update.status).toBe(200);
     expect(update.body.user).toMatchObject({ id: member.id, name: '已更正测试', studentNumber: updatedNumber });
     expect((await request(adminApp).get(`${v1}/profile`).set(auth(memberToken))).status).toBe(401);
+    const correctedLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber });
+    expect(correctedLogin.status).toBe(201);
+
+    const banned = await request(adminApp).patch(`${v1}/admin/users/${member.id}/account-status`).set(auth(adminToken)).send({ banned: true });
+    expect(banned.status).toBe(200);
+    expect(banned.body.user).toEqual({ id: member.id, isBanned: true });
+    expect((await request(adminApp).get(`${v1}/profile`).set(auth(correctedLogin.body.token))).status).toBe(401);
+    const blockedLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber });
+    expect(blockedLogin.status).toBe(403);
+    expect(blockedLogin.body.error.code).toBe('ACCOUNT_BANNED');
+    expect((await request(adminApp).patch(`${v1}/admin/users/${member.id}/account-status`).set(auth(adminToken)).send({ banned: false })).status).toBe(200);
     expect((await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber })).status).toBe(201);
+    const adminUserId = db.prepare('SELECT id FROM users WHERE account_id = ?').get(adminAccountId).id;
+    const selfBan = await request(adminApp).patch(`${v1}/admin/users/${adminUserId}/account-status`).set(auth(adminToken)).send({ banned: true });
+    expect(selfBan.status).toBe(400);
+    expect(selfBan.body.error.code).toBe('SELF_BAN_FORBIDDEN');
 
     const deleted = await request(adminApp).delete(`${coursePath('comments')}/${commentId}`).set(auth(adminToken));
     expect(deleted.status).toBe(204);

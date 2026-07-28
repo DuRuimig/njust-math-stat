@@ -43,7 +43,8 @@ Page({
     adminEditingName: "",
     adminEditingStudentNumber: "",
     isSearchingAdminUsers: false,
-    isSavingAdminIdentity: false
+    isSavingAdminIdentity: false,
+    adminStatusChangingUserId: ""
   },
 
   onShow: function () {
@@ -83,7 +84,8 @@ Page({
         adminEditingName: "",
         adminEditingStudentNumber: "",
         isSearchingAdminUsers: false,
-        isSavingAdminIdentity: false
+        isSavingAdminIdentity: false,
+        adminStatusChangingUserId: ""
       })
       return
     }
@@ -117,7 +119,8 @@ Page({
         adminEditingName: profile.isAdmin ? page.data.adminEditingName : "",
         adminEditingStudentNumber: profile.isAdmin ? page.data.adminEditingStudentNumber : "",
         isSearchingAdminUsers: false,
-        isSavingAdminIdentity: false
+        isSavingAdminIdentity: false,
+        adminStatusChangingUserId: ""
       })
     }).catch(function (error) {
       if (!page.isCurrentSessionRequest(requestEpoch)) return
@@ -128,7 +131,8 @@ Page({
         isBindingProfile: false,
         isSavingProfile: false,
         isSearchingAdminUsers: false,
-        isSavingAdminIdentity: false
+        isSavingAdminIdentity: false,
+        adminStatusChangingUserId: ""
       })
     })
   },
@@ -172,7 +176,8 @@ Page({
       adminEditingName: "",
       adminEditingStudentNumber: "",
       isSearchingAdminUsers: false,
-      isSavingAdminIdentity: false
+      isSavingAdminIdentity: false,
+      adminStatusChangingUserId: ""
     })
     return true
   },
@@ -321,6 +326,38 @@ Page({
       if (page.showSessionExpired(error)) return
       page.setData({ isSavingAdminIdentity: false })
       wx.showToast({ title: serviceMessage(error), icon: "none" })
+    })
+  },
+
+  toggleAdminUserStatus: function (event) {
+    var page = this
+    var userId = event.currentTarget.dataset.id
+    var currentlyBanned = Boolean(event.currentTarget.dataset.banned)
+    if (!this.data.isAdmin || !userId || this.data.adminStatusChangingUserId) return
+    wx.showModal({
+      title: currentlyBanned ? "解除封禁" : "封禁账号",
+      content: currentlyBanned ? "解除后，该用户可使用已绑定的身份重新登录。" : "封禁后，该用户会立即退出，且不能再次登录。",
+      success: function (result) {
+        if (!result.confirm) return
+        var requestEpoch = page.sessionRequestEpoch || 0
+        page.setData({ adminStatusChangingUserId: userId })
+        api.updateAdminUserStatus(userId, !currentlyBanned).then(function (response) {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          var user = response.user || {}
+          page.setData({
+            adminUsers: page.data.adminUsers.map(function (item) {
+              return item.id === userId ? Object.assign({}, item, { isBanned: Boolean(user.isBanned) }) : item
+            }),
+            adminStatusChangingUserId: ""
+          })
+          wx.showToast({ title: user.isBanned ? "账号已封禁" : "账号已解除封禁", icon: "success" })
+        }).catch(function (error) {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          if (page.showSessionExpired(error)) return
+          page.setData({ adminStatusChangingUserId: "" })
+          wx.showToast({ title: serviceMessage(error), icon: "none" })
+        })
+      }
     })
   },
 

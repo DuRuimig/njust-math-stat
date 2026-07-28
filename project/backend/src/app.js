@@ -37,6 +37,7 @@ const adminIdentitySchema = z.object({
   name: z.string().trim().min(1).max(80),
   studentNumber: z.string().trim().regex(/^\d{12}$/),
 }).strict();
+const adminAccountStatusSchema = z.object({ banned: z.boolean() }).strict();
 const teacherSummaryQuerySchema = z.object({
   ids: z.string().max(6600).optional(),
 }).strict();
@@ -196,6 +197,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     // Keep the WeChat identity in process memory only long enough to derive its internal account key.
     const accountId = wechatAccountId(identity.openid);
     const user = await repository.findOrCreateUser(accountId, crypto.randomUUID());
+    if (user.is_banned) return apiError(res, 403, 'ACCOUNT_BANNED', '该账号已被管理员封禁');
     const token = crypto.randomBytes(32).toString('base64url');
     await repository.createSession(tokenHash(token), user.id);
     res.status(201).json({ token, expiresInSeconds: 604800, mode: 'wechat' });
@@ -210,6 +212,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (user.legal_name !== name || user.student_number !== studentNumber) {
       return apiError(res, 409, 'TEST_IDENTITY_MISMATCH', '该学号已被不同姓名的测试身份使用');
     }
+    if (user.is_banned) return apiError(res, 403, 'ACCOUNT_BANNED', '该账号已被管理员封禁');
     if (initialAdminAccountId && accountId === initialAdminAccountId) await repository.ensureAdminRole(user.id);
     const token = crypto.randomBytes(32).toString('base64url');
     await repository.createSession(tokenHash(token), user.id);
@@ -224,6 +227,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
       user = { id: crypto.randomUUID() };
       await repository.createUser(user.id, parsed.data.accountId);
     }
+    if (user.is_banned) return apiError(res, 403, 'ACCOUNT_BANNED', '该账号已被管理员封禁');
     const token = crypto.randomBytes(32).toString('base64url');
     await repository.createSession(tokenHash(token), user.id);
     res.status(201).json({ token, expiresInSeconds: 604800, mode: 'development-test-only' });
@@ -268,7 +272,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     const parsed = adminUserQuerySchema.safeParse(req.query);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '请输入姓名或学号搜索用户');
     const items = await repository.listUsersForAdmin(parsed.data.q);
-    res.json({ items: items.map((user) => ({ id: user.id, name: user.legal_name, studentNumber: user.student_number, createdAt: user.created_at })) });
+    res.json({ items: items.map((user) => ({ id: user.id, name: user.legal_name, studentNumber: user.student_number, isBanned: Boolean(user.is_banned), createdAt: user.created_at })) });
   }));
   api.patch('/admin/users/:userId/identity', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
     const parsed = adminIdentitySchema.safeParse(req.body);
@@ -279,6 +283,16 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (result.conflict) return apiError(res, 409, 'STUDENT_NUMBER_IN_USE', '该学号已被其他用户使用');
     await repository.writeAdminAudit(crypto.randomUUID(), req.user.id, 'update_identity', 'user', userId);
     res.json({ user: { id: userId, name: parsed.data.name, studentNumber: parsed.data.studentNumber } });
+  }));
+  api.patch('/admin/users/:userId/account-status', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+    const parsed = adminAccountStatusSchema.safeParse(req.body);
+    const userId = String(req.params.userId || '');
+    if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '账号状态格式无效');
+    if (parsed.data.banned && userId === req.user.id) return apiError(res, 400, 'SELF_BAN_FORBIDDEN', '不能封禁当前管理员账号');
+    const result = await repository.adminSetUserBanned(userId, parsed.data.banned);
+    if (result.missing) return apiError(res, 404, 'USER_NOT_FOUND', '用户不存在');
+    await repository.writeAdminAudit(crypto.randomUUID(), req.user.id, parsed.data.banned ? 'ban_user' : 'unban_user', 'user', userId);
+    res.json({ user: { id: userId, isBanned: parsed.data.banned } });
   }));
   api.get('/teachers/feedback-summary', asyncHandler(optionalUser), asyncHandler(teacherFeedbackSummary));
   for (const config of [

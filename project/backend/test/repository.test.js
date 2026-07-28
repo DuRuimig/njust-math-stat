@@ -7,11 +7,11 @@ function sqliteUniqueConflictDatabase() {
     database: {
       kind: 'sqlite',
       prepare(sql) {
-        if (sql === 'SELECT id FROM users WHERE account_id = ?') {
+        if (sql === 'SELECT id, is_banned FROM users WHERE account_id = ?') {
           return {
             get() {
               state.userLookups += 1;
-              return state.userLookups === 1 ? undefined : { id: 'existing-user' };
+              return state.userLookups === 1 ? undefined : { id: 'existing-user', is_banned: 0 };
             },
           };
         }
@@ -38,9 +38,9 @@ function mysqlDuplicateEntryDatabase() {
     database: {
       kind: 'mysql',
       async execute(sql) {
-        if (sql === 'SELECT id FROM users WHERE account_id = ?') {
+        if (sql === 'SELECT id, is_banned FROM users WHERE account_id = ?') {
           state.userLookups += 1;
-          return [state.userLookups === 1 ? [] : [{ id: 'existing-user' }]];
+          return [state.userLookups === 1 ? [] : [{ id: 'existing-user', is_banned: 0 }]];
         }
         if (sql === 'INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)') {
           state.userInsertAttempts += 1;
@@ -59,7 +59,7 @@ describe('用户查找或创建的唯一冲突恢复', () => {
     const fixture = sqliteUniqueConflictDatabase();
     const repository = createRepository(fixture.database);
 
-    await expect(repository.findOrCreateUser('wechat:hashed-key', 'candidate-user')).resolves.toEqual({ id: 'existing-user' });
+    await expect(repository.findOrCreateUser('wechat:hashed-key', 'candidate-user')).resolves.toEqual({ id: 'existing-user', is_banned: 0 });
 
     expect(fixture.state.userLookups).toBe(2);
     expect(fixture.state.userInsertAttempts).toBe(1);
@@ -69,7 +69,7 @@ describe('用户查找或创建的唯一冲突恢复', () => {
     const fixture = mysqlDuplicateEntryDatabase();
     const repository = createRepository(fixture.database);
 
-    await expect(repository.findOrCreateUser('wechat:hashed-key', 'candidate-user')).resolves.toEqual({ id: 'existing-user' });
+    await expect(repository.findOrCreateUser('wechat:hashed-key', 'candidate-user')).resolves.toEqual({ id: 'existing-user', is_banned: 0 });
 
     expect(fixture.state.userLookups).toBe(2);
     expect(fixture.state.userInsertAttempts).toBe(1);
