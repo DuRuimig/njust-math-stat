@@ -26,7 +26,7 @@
     <view class="section-head"><text class="section-title">课程评论</text></view>
     <view class="feedback-card surface">
       <view class="comment-composer"><textarea class="field-textarea" value="{{commentText}}" maxlength="300" placeholder="登录并点赞后可评论" disabled="{{!isLoggedIn || !hasLiked}}" bindinput="onCommentInput"></textarea><view class="comment-action"><text>{{commentText.length}}/300</text><button class="primary-button comment-submit" loading="{{isSubmittingComment}}" disabled="{{!isLoggedIn || !hasLiked || isSubmittingComment}}" bindtap="submitComment">发布评论</button></view></view>
-       <view wx:if="{{comments.length}}" class="comment-list"><view wx:for="{{comments}}" wx:key="createdAt" class="comment-item"><view class="comment-meta"><text>用户</text><text>{{item.createdAt || ''}}</text></view><text class="comment-content">{{item.content}}</text></view></view>
+       <view wx:if="{{comments.length}}" class="comment-list"><view wx:for="{{comments}}" wx:key="id" class="comment-item"><view class="comment-meta"><text>用户</text><view class="comment-meta-actions"><text>{{item.createdAt || ''}}</text><button wx:if="{{item.canDelete || item.canModerate}}" class="comment-delete" data-id="{{item.id}}" loading="{{deletingCommentId === item.id}}" disabled="{{deletingCommentId && deletingCommentId !== item.id}}" bindtap="deleteComment">删除</button></view></view><text class="comment-content">{{item.content}}</text></view></view>
       <view wx:else class="comment-empty"><text>暂无评论</text></view>
     </view>
 

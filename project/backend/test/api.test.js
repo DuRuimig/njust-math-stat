@@ -14,7 +14,7 @@ let app;
 const courseKey = '11129201:数学分析(I)';
 const teacherId = `directory:${crypto.createHash('sha256').update('test-teacher|数学系').digest('hex')}`;
 const v1 = '/api/v1';
-const forbiddenIdentityKeys = ['user', 'userId', 'id', 'name', 'studentNumber', 'nickname', 'avatarUrl', 'accountId'];
+const forbiddenIdentityKeys = ['user', 'userId', 'name', 'studentNumber', 'nickname', 'avatarUrl', 'accountId'];
 const teacherDirectoryKey = (teacher) => {
   const sourceKey = teacher.academyDirectoryLink || `${teacher.name}|${teacher.department || ''}`;
   return `directory:${crypto.createHash('sha256').update(sourceKey).digest('hex')}`;
@@ -23,7 +23,7 @@ const teacherDirectoryKey = (teacher) => {
 beforeAll(() => {
   const databasePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'njust-api-')), 'test.sqlite');
   db = sqliteDatabase(databasePath);
-  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql']) {
+  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql']) {
     db.exec(fs.readFileSync(path.resolve(__dirname, `../../../database/migrations/${migration}`), 'utf8'));
   }
   db.prepare('INSERT INTO courses (id, stable_key, code, normalized_name, name) VALUES (?, ?, ?, ?, ?)')
@@ -86,6 +86,7 @@ function forcedSqliteUniqueConflictDatabase() {
 
 function expectAnonymous(comment) {
   expect(comment).toMatchObject({ anonymous: true });
+  expect(comment.id).toMatch(/^[0-9a-f-]{36}$/i);
   for (const key of forbiddenIdentityKeys) expect(comment).not.toHaveProperty(key);
 }
 
@@ -127,6 +128,7 @@ describe('v1 API 契约', () => {
       nickname: '新同学',
       avatarUrl: null,
       privateBinding: { name: null, studentNumber: null },
+      isAdmin: false,
     });
   });
 
@@ -328,6 +330,7 @@ describe('v1 API 契约', () => {
       nickname: '新同学',
       avatarUrl: null,
       privateBinding: { name: '测试姓名', studentNumber: '12345678' },
+      isAdmin: false,
     });
 
     const profile = await request(app).get(`${v1}/profile`).set(auth(token));
@@ -423,6 +426,48 @@ describe('v1 API 契约', () => {
     const liked = await request(app).post(`${doubleEncodedPath}/likes`).set(auth(token));
     expect(liked.status).toBe(201);
     expect(liked.body).toMatchObject({ liked: true, alreadyLiked: false });
+  });
+
+  it('管理员可以更正身份并删除任意评论，普通用户不会获得越权能力', async () => {
+    const adminStudentNumber = '900000000001';
+    const adminName = '管理员测试';
+    const adminAccountId = `test-identity:${crypto.createHash('sha256').update(adminStudentNumber).digest('hex')}`;
+    const adminApp = createApp({ db, env: 'production', testIdentityLoginEnabled: true, initialAdminAccountId: adminAccountId });
+    const adminLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: adminName, studentNumber: adminStudentNumber });
+    expect(adminLogin.status).toBe(201);
+    const adminToken = adminLogin.body.token;
+    expect((await request(adminApp).get(`${v1}/profile`).set(auth(adminToken))).body).toMatchObject({ isAdmin: true });
+
+    const memberNumber = '900000000002';
+    const memberLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '普通测试', studentNumber: memberNumber });
+    const memberToken = memberLogin.body.token;
+    const memberLike = await request(adminApp).post(coursePath('likes')).set(auth(memberToken));
+    expect(memberLike.status).toBe(201);
+    const created = await request(adminApp).post(coursePath('comments')).set(auth(memberToken)).send({ content: '需要管理的评论' });
+    expect(created.status).toBe(201);
+    const commentId = created.body.comment.id;
+
+    const forbiddenDelete = await request(app).delete(`${coursePath('comments')}/${commentId}`).set(auth(await session('other-student')));
+    expect(forbiddenDelete.status).toBe(403);
+    expect(forbiddenDelete.body.error.code).toBe('COMMENT_DELETE_FORBIDDEN');
+    expect((await request(app).get(`${v1}/admin/users?q=${encodeURIComponent('普通测试')}`).set(auth(await session('other-student')))).status).toBe(403);
+
+    const search = await request(adminApp).get(`${v1}/admin/users?q=${encodeURIComponent('普通测试')}`).set(auth(adminToken));
+    expect(search.status).toBe(200);
+    const member = search.body.items.find((item) => item.studentNumber === memberNumber);
+    expect(member).toMatchObject({ name: '普通测试' });
+    expect(member).not.toHaveProperty('accountId');
+    const updatedNumber = '900000000003';
+    const update = await request(adminApp).patch(`${v1}/admin/users/${member.id}/identity`).set(auth(adminToken)).send({ name: '已更正测试', studentNumber: updatedNumber });
+    expect(update.status).toBe(200);
+    expect(update.body.user).toMatchObject({ id: member.id, name: '已更正测试', studentNumber: updatedNumber });
+    expect((await request(adminApp).get(`${v1}/profile`).set(auth(memberToken))).status).toBe(401);
+    expect((await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber })).status).toBe(201);
+
+    const deleted = await request(adminApp).delete(`${coursePath('comments')}/${commentId}`).set(auth(adminToken));
+    expect(deleted.status).toBe(204);
+    expect((await request(adminApp).get(coursePath('feedback')).set(auth(adminToken))).body.comments.some((item) => item.id === commentId)).toBe(false);
+    expect(db.prepare("SELECT action, target_type, target_id FROM admin_audit_logs WHERE action = 'delete_comment' AND target_id = ?").get(commentId)).toEqual({ action: 'delete_comment', target_type: 'course_comment', target_id: commentId });
   });
 
   it('接受真机传来的全角课程括号', async () => {

@@ -284,7 +284,8 @@ function normalizeProfile(payload) {
     nickname: profile.nickname || "",
     avatarUrl: profile.avatarUrl || "",
     privateBinding: payload.privateBinding || profile.privateBinding || null,
-    bindingStatus: payload.bindingStatus || profile.bindingStatus || "real-login-pending"
+    bindingStatus: payload.bindingStatus || profile.bindingStatus || "real-login-pending",
+    isAdmin: Boolean(payload.isAdmin || profile.isAdmin)
   }
 }
 
@@ -346,6 +347,28 @@ function postComment(kind, id, content) {
   return request({ method: "POST", path: targetPath(kind, id) + "/comments", data: { content: text } })
 }
 
+function deleteComment(kind, id, commentId) {
+  var safeCommentId = cleanText(commentId, 36)
+  if (!/^[0-9a-f-]{36}$/i.test(safeCommentId)) return Promise.reject(apiError("评论标识无效", "INVALID_COMMENT"))
+  return request({ method: "DELETE", path: targetPath(kind, id) + "/comments/" + encodeURIComponent(safeCommentId) })
+}
+
+function searchAdminUsers(query) {
+  var text = cleanText(query, 80)
+  if (!text) return Promise.reject(apiError("请输入姓名或学号", "INVALID_ADMIN_QUERY"))
+  return request({ path: API_PREFIX + "/admin/users?q=" + encodeURIComponent(text) })
+}
+
+function updateAdminUserIdentity(userId, identity) {
+  var safeUserId = cleanText(userId, 36)
+  var name = cleanText(identity && identity.name, 80)
+  var studentNumber = cleanText(identity && identity.studentNumber, 12)
+  if (!/^[0-9a-f-]{36}$/i.test(safeUserId) || !name || !/^\d{12}$/.test(studentNumber)) {
+    return Promise.reject(apiError("姓名和 12 位学号格式无效", "INVALID_ADMIN_IDENTITY"))
+  }
+  return request({ method: "PATCH", path: API_PREFIX + "/admin/users/" + encodeURIComponent(safeUserId) + "/identity", data: { name: name, studentNumber: studentNumber } })
+}
+
 module.exports = {
   DEFAULT_BASE_URL: DEFAULT_BASE_URL,
   API_MODE_LOCAL: API_MODE_LOCAL,
@@ -370,5 +393,8 @@ module.exports = {
   getFeedback: getFeedback,
   like: like,
   unlike: unlike,
-  postComment: postComment
+  postComment: postComment,
+  deleteComment: deleteComment,
+  searchAdminUsers: searchAdminUsers,
+  updateAdminUserIdentity: updateAdminUserIdentity
 }

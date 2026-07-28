@@ -32,6 +32,11 @@ const changeRequestSchema = z.object({
   studentNumber: z.string().trim().min(4).max(32).optional(),
 }).strict().refine((data) => data.name || data.studentNumber, '至少提交一个修改字段');
 const commentSchema = z.object({ content: z.string().trim().min(1).max(300) }).strict();
+const adminUserQuerySchema = z.object({ q: z.string().trim().min(1).max(80) }).strict();
+const adminIdentitySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  studentNumber: z.string().trim().regex(/^\d{12}$/),
+}).strict();
 const teacherSummaryQuerySchema = z.object({
   ids: z.string().max(6600).optional(),
 }).strict();
@@ -63,7 +68,7 @@ function decodeTargetKey(value) {
   }
 }
 
-function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }), wechatAuth = createWechatAuth(), testIdentityLoginEnabled = process.env.ENABLE_TEST_IDENTITY_LOGIN === '1' } = {}) {
+function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }), wechatAuth = createWechatAuth(), testIdentityLoginEnabled = process.env.ENABLE_TEST_IDENTITY_LOGIN === '1', initialAdminAccountId = process.env.INITIAL_ADMIN_ACCOUNT_ID || '' } = {}) {
   if (!db) throw new Error('createApp requires an initialized database connection');
   const repository = createRepository(db);
   const app = express();
@@ -90,6 +95,10 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   async function requireUser(req, res, next) {
     await optionalUser(req, res, () => req.user ? next() : apiError(res, 401, 'AUTH_REQUIRED', '需要有效会话'));
   }
+  async function requireAdmin(req, res, next) {
+    if (!await repository.isAdmin(req.user.id)) return apiError(res, 403, 'ADMIN_REQUIRED', '需要管理员权限');
+    next();
+  }
   function entityByKey(table, param, label) {
     const type = table === 'courses' ? 'course' : 'teacher';
     return asyncHandler(async (req, res, next) => {
@@ -109,8 +118,16 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   function feedback(targetType) {
     return async (req, res) => {
       const result = await repository.feedback(targetType, req.target.id, req.user && req.user.id);
+      const isAdmin = req.user ? await repository.isAdmin(req.user.id) : false;
       const comments = result.comments
-        .map((item) => ({ content: item.body, createdAt: item.created_at, anonymous: true }));
+        .map((item) => ({
+          id: item.id,
+          content: item.body,
+          createdAt: item.created_at,
+          anonymous: true,
+          canDelete: Boolean(req.user && item.user_id === req.user.id),
+          canModerate: isAdmin,
+        }));
       res.json({ likeCount: result.likeCount, likedByMe: result.liked, comments });
     };
   }
@@ -134,7 +151,20 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
       if (!liked) return apiError(res, 403, 'LIKE_REQUIRED', '点赞后才能匿名评论');
       const id = crypto.randomUUID();
       const created = await repository.createComment(targetType, id, req.user.id, req.target.id, parsed.data.content);
-      res.status(201).json({ comment: { content: created.body, createdAt: created.created_at, anonymous: true } });
+      res.status(201).json({ comment: { id: created.id, content: created.body, createdAt: created.created_at, anonymous: true, canDelete: true, canModerate: await repository.isAdmin(req.user.id) } });
+    };
+  }
+  function deleteComment(targetType) {
+    return async (req, res) => {
+      const commentId = String(req.params.commentId || '');
+      if (!/^[0-9a-f-]{36}$/i.test(commentId)) return apiError(res, 400, 'VALIDATION_FAILED', '评论标识格式无效');
+      const comment = await repository.findComment(targetType, commentId, req.target.id);
+      if (!comment) return apiError(res, 404, 'COMMENT_NOT_FOUND', '评论不存在');
+      const isAdmin = await repository.isAdmin(req.user.id);
+      if (comment.user_id !== req.user.id && !isAdmin) return apiError(res, 403, 'COMMENT_DELETE_FORBIDDEN', '只能删除自己的评论');
+      await repository.deleteComment(targetType, commentId, req.target.id);
+      if (isAdmin) await repository.writeAdminAudit(crypto.randomUUID(), req.user.id, 'delete_comment', `${targetType}_comment`, commentId);
+      res.status(204).end();
     };
   }
   async function teacherFeedbackSummary(req, res) {
@@ -175,10 +205,12 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     const parsed = testIdentitySchema.safeParse(req.body);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '请填写姓名和 12 位学号');
     const { name, studentNumber } = parsed.data;
-    const user = await repository.findOrCreateTestIdentity(testIdentityAccountId(studentNumber), crypto.randomUUID(), name, studentNumber);
+    const accountId = testIdentityAccountId(studentNumber);
+    const user = await repository.findOrCreateTestIdentity(accountId, crypto.randomUUID(), name, studentNumber);
     if (user.legal_name !== name || user.student_number !== studentNumber) {
       return apiError(res, 409, 'TEST_IDENTITY_MISMATCH', '该学号已被不同姓名的测试身份使用');
     }
+    if (initialAdminAccountId && accountId === initialAdminAccountId) await repository.ensureAdminRole(user.id);
     const token = crypto.randomBytes(32).toString('base64url');
     await repository.createSession(tokenHash(token), user.id);
     res.status(201).json({ token, expiresInSeconds: 604800, mode: 'test-identity' });
@@ -196,12 +228,13 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     await repository.createSession(tokenHash(token), user.id);
     res.status(201).json({ token, expiresInSeconds: 604800, mode: 'development-test-only' });
   }));
-  api.get('/profile', asyncHandler(requireUser), (req, res) => res.json({
+  api.get('/profile', asyncHandler(requireUser), asyncHandler(async (req, res) => res.json({
     bindingStatus: bindingStatus(req.user),
     nickname: req.user.nickname,
     avatarUrl: req.user.avatar_url,
     privateBinding: { name: req.user.legal_name, studentNumber: req.user.student_number },
-  }));
+    isAdmin: await repository.isAdmin(req.user.id),
+  })));
   api.post('/profile/binding', asyncHandler(requireUser), asyncHandler(async (req, res) => {
     const parsed = bindingSchema.safeParse(req.body);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '姓名和学号均为首次绑定必填项');
@@ -214,6 +247,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
       nickname: user.nickname,
       avatarUrl: user.avatar_url,
       privateBinding: { name: user.legal_name, studentNumber: user.student_number },
+      isAdmin: await repository.isAdmin(req.user.id),
     });
   }));
   api.patch('/profile', asyncHandler(requireUser), asyncHandler(async (req, res) => {
@@ -230,6 +264,22 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     await repository.createChangeRequest(crypto.randomUUID(), req.user.id, parsed.data.name, parsed.data.studentNumber);
     res.status(201).json({ status: 'pending' });
   }));
+  api.get('/admin/users', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+    const parsed = adminUserQuerySchema.safeParse(req.query);
+    if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '请输入姓名或学号搜索用户');
+    const items = await repository.listUsersForAdmin(parsed.data.q);
+    res.json({ items: items.map((user) => ({ id: user.id, name: user.legal_name, studentNumber: user.student_number, createdAt: user.created_at })) });
+  }));
+  api.patch('/admin/users/:userId/identity', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+    const parsed = adminIdentitySchema.safeParse(req.body);
+    const userId = String(req.params.userId || '');
+    if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '姓名和 12 位学号格式无效');
+    const result = await repository.adminUpdateIdentity(userId, parsed.data.name, parsed.data.studentNumber, testIdentityAccountId(parsed.data.studentNumber));
+    if (result.missing) return apiError(res, 404, 'USER_NOT_FOUND', '用户不存在');
+    if (result.conflict) return apiError(res, 409, 'STUDENT_NUMBER_IN_USE', '该学号已被其他用户使用');
+    await repository.writeAdminAudit(crypto.randomUUID(), req.user.id, 'update_identity', 'user', userId);
+    res.json({ user: { id: userId, name: parsed.data.name, studentNumber: parsed.data.studentNumber } });
+  }));
   api.get('/teachers/feedback-summary', asyncHandler(optionalUser), asyncHandler(teacherFeedbackSummary));
   for (const config of [
     { root: 'courses', param: 'courseKey', targetType: 'course', label: '课程' },
@@ -240,6 +290,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     api.post(`/${config.root}/:${config.param}/likes`, asyncHandler(requireUser), target, asyncHandler(like(config.targetType)));
     api.delete(`/${config.root}/:${config.param}/likes`, asyncHandler(requireUser), target, asyncHandler(unlike(config.targetType)));
     api.post(`/${config.root}/:${config.param}/comments`, asyncHandler(requireUser), target, asyncHandler(comment(config.targetType)));
+    api.delete(`/${config.root}/:${config.param}/comments/:commentId`, asyncHandler(requireUser), target, asyncHandler(deleteComment(config.targetType)));
   }
 
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));

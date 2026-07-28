@@ -33,10 +33,16 @@
       <view class="readonly-row"><text>姓名</text><text>{{studentName}}</text></view>
       <view class="readonly-row"><text>学号</text><text>{{studentId}}</text></view>
        <text class="readonly-note">姓名与学号为私有只读资料，绝不会展示在匿名评论中。</text>
-      <view class="contact-placeholder">
-        <text class="contact-placeholder-title">身份资料修改入口待接入</text>
-        <text class="contact-placeholder-copy">当前版本不提供管理员个人联系方式，请等待学校官方服务入口开放。</text>
-      </view>
+      <view class="contact-placeholder"><text class="contact-placeholder-title">身份资料如有误，请联系管理员更正</text><text class="contact-placeholder-copy">管理员更正后，该账号需要使用新的姓名和学号重新登录。</text></view>
     </block>
+  </view>
+
+  <view wx:if="{{isLoggedIn && isAdmin}}" class="section-head"><text class="section-title">管理员</text></view>
+  <view wx:if="{{isLoggedIn && isAdmin}}" class="profile-card surface admin-card">
+    <text class="admin-note">搜索用户后可更正姓名和 12 位学号。更正会使该用户的旧登录状态失效。</text>
+    <view class="admin-search-row"><input class="field-input admin-search-input" value="{{adminQuery}}" maxlength="80" placeholder="姓名或学号" bindinput="onAdminQueryInput" confirm-type="search" bindconfirm="searchAdminUsers" /><button class="primary-button admin-search-button" loading="{{isSearchingAdminUsers}}" disabled="{{isSearchingAdminUsers}}" bindtap="searchAdminUsers">搜索</button></view>
+    <view wx:if="{{adminUsers.length}}" class="admin-user-list"><button wx:for="{{adminUsers}}" wx:key="id" class="admin-user-item {{adminEditingUserId === item.id ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="selectAdminUser"><text>{{item.name || '未绑定姓名'}}</text><text>{{item.studentNumber || '未绑定学号'}}</text></button></view>
+    <text wx:if="{{!isSearchingAdminUsers && adminQuery && !adminUsers.length}}" class="admin-empty">没有找到匹配用户</text>
+    <view wx:if="{{adminEditingUserId}}" class="admin-editor"><view class="field-group"><text class="field-label">姓名</text><input class="field-input" value="{{adminEditingName}}" maxlength="80" bindinput="onAdminNameInput" /></view><view class="field-group"><text class="field-label">12 位学号</text><input class="field-input" value="{{adminEditingStudentNumber}}" maxlength="12" bindinput="onAdminStudentNumberInput" /></view><button class="primary-button save-profile" loading="{{isSavingAdminIdentity}}" disabled="{{isSavingAdminIdentity}}" bindtap="saveAdminIdentity">保存更正</button></view>
   </view>
 </view>

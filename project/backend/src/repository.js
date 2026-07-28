@@ -13,7 +13,15 @@ function createSqliteRepository(db) {
   const one = (sql, ...params) => Promise.resolve(db.prepare(sql).get(...params));
   const many = (sql, ...params) => Promise.resolve(db.prepare(sql).all(...params));
   const run = (sql, ...params) => Promise.resolve(db.prepare(sql).run(...params));
-  return createRepositoryOperations({ one, many, run, nowPlusSevenDays: "datetime('now', '+7 days')", insertIgnore: 'ON CONFLICT(user_id, TARGET_ID) DO NOTHING' });
+  return createRepositoryOperations({
+    one,
+    many,
+    run,
+    nowPlusSevenDays: "datetime('now', '+7 days')",
+    insertIgnore: 'ON CONFLICT(user_id, TARGET_ID) DO NOTHING',
+    insertAdminRole: 'INSERT OR IGNORE INTO roles (id, role_key, description) VALUES (?, ?, ?)',
+    insertUserRole: 'INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)',
+  });
 }
 
 function createMysqlRepository(db) {
@@ -23,11 +31,20 @@ function createMysqlRepository(db) {
     const [result] = await db.execute(sql, params);
     return { changes: result.affectedRows };
   };
-  return createRepositoryOperations({ one, many, run, nowPlusSevenDays: 'DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY)', insertIgnore: 'ON DUPLICATE KEY UPDATE user_id = user_id' });
+  return createRepositoryOperations({
+    one,
+    many,
+    run,
+    nowPlusSevenDays: 'DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY)',
+    insertIgnore: 'ON DUPLICATE KEY UPDATE user_id = user_id',
+    insertAdminRole: 'INSERT INTO roles (id, role_key, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role_key = role_key',
+    insertUserRole: 'INSERT INTO user_roles (user_id, role_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE user_id = user_id',
+  });
 }
 
-function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIgnore }) {
+function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIgnore, insertAdminRole, insertUserRole }) {
   const targetSql = (type) => ({ table: `${type}s`, key: type === 'course' ? 'stable_key' : 'directory_key', column: `${type}_id` });
+  const adminRoleId = 'b2ab8a66-7151-4f49-9bf0-e4beeb3f5ea3';
   return {
     findSession: (hash) => one(`SELECT u.id, u.account_id, u.nickname, u.avatar_url, u.legal_name, u.student_number FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > CURRENT_TIMESTAMP`, hash),
     findTarget: (type, key) => {
@@ -37,7 +54,7 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     feedback: async (type, targetId, userId) => {
       const target = targetSql(type);
       const likeCount = Number((await one(`SELECT COUNT(*) AS count FROM ${type}_likes WHERE ${target.column} = ?`, targetId)).count);
-      const comments = await many(`SELECT body, created_at FROM ${type}_comments WHERE ${target.column} = ? ORDER BY created_at DESC`, targetId);
+      const comments = await many(`SELECT id, user_id, body, created_at FROM ${type}_comments WHERE ${target.column} = ? ORDER BY created_at DESC`, targetId);
       const liked = userId ? Boolean(await one(`SELECT 1 FROM ${type}_likes WHERE user_id = ? AND ${target.column} = ?`, userId, targetId)) : false;
       return { likeCount, liked, comments };
     },
@@ -55,8 +72,10 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     canComment: (type, userId, targetId) => one(`SELECT 1 FROM ${type}_likes WHERE user_id = ? AND ${type}_id = ?`, userId, targetId),
     createComment: async (type, id, userId, targetId, body) => {
       await run(`INSERT INTO ${type}_comments (id, user_id, ${type}_id, body) VALUES (?, ?, ?, ?)`, id, userId, targetId, body);
-      return one(`SELECT body, created_at FROM ${type}_comments WHERE id = ?`, id);
+      return one(`SELECT id, user_id, body, created_at FROM ${type}_comments WHERE id = ?`, id);
     },
+    findComment: (type, commentId, targetId) => one(`SELECT id, user_id FROM ${type}_comments WHERE id = ? AND ${type}_id = ?`, commentId, targetId),
+    deleteComment: (type, commentId, targetId) => run(`DELETE FROM ${type}_comments WHERE id = ? AND ${type}_id = ?`, commentId, targetId),
     teacherSummary: async (keys, userId) => {
       if (!keys.length) return [];
       const placeholders = keys.map(() => '?').join(', ');
@@ -102,6 +121,29 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     profile: (userId) => one('SELECT nickname, avatar_url, legal_name, student_number FROM users WHERE id = ?', userId),
     updateProfile: (nickname, avatarUrl, userId) => run('UPDATE users SET nickname = CASE WHEN ? THEN ? ELSE nickname END, avatar_url = CASE WHEN ? THEN ? ELSE avatar_url END, updated_at = CURRENT_TIMESTAMP WHERE id = ?', nickname !== undefined ? 1 : 0, nickname ?? null, avatarUrl !== undefined ? 1 : 0, avatarUrl ?? null, userId),
     createChangeRequest: (id, userId, name, studentNumber) => run('INSERT INTO profile_change_requests (id, user_id, requested_name, requested_student_number) VALUES (?, ?, ?, ?)', id, userId, name || null, studentNumber || null),
+    ensureAdminRole: async (userId) => {
+      await run(insertAdminRole, adminRoleId, 'admin', '体验版管理员');
+      await run(insertUserRole, userId, adminRoleId);
+    },
+    isAdmin: async (userId) => Boolean(await one("SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? AND r.role_key = 'admin'", userId)),
+    listUsersForAdmin: async (query) => {
+      const pattern = `%${query}%`;
+      return many('SELECT id, legal_name, student_number, created_at FROM users WHERE legal_name LIKE ? OR student_number LIKE ? ORDER BY updated_at DESC LIMIT 50', pattern, pattern);
+    },
+    adminUpdateIdentity: async (userId, name, studentNumber, accountId) => {
+      const existing = await one('SELECT id FROM users WHERE account_id = ? AND id <> ?', accountId, userId);
+      if (existing) return { conflict: true };
+      try {
+        const updated = await run('UPDATE users SET account_id = ?, legal_name = ?, student_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', accountId, name, studentNumber, userId);
+        if (!updated.changes) return { missing: true };
+      } catch (error) {
+        if (isUserAccountUniqueConflict(error)) return { conflict: true };
+        throw error;
+      }
+      await run('DELETE FROM sessions WHERE user_id = ?', userId);
+      return { updated: true };
+    },
+    writeAdminAudit: (id, actorUserId, action, targetType, targetId) => run('INSERT INTO admin_audit_logs (id, actor_user_id, action, target_type, target_id) VALUES (?, ?, ?, ?, ?)', id, actorUserId, action, targetType, targetId || null),
   };
 }
 

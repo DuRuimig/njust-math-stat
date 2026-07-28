@@ -35,7 +35,15 @@ Page({
     isCreatingSession: false,
     isBindingProfile: false,
     isEditingProfile: false,
-    isSavingProfile: false
+    isSavingProfile: false,
+    isAdmin: false,
+    adminQuery: "",
+    adminUsers: [],
+    adminEditingUserId: "",
+    adminEditingName: "",
+    adminEditingStudentNumber: "",
+    isSearchingAdminUsers: false,
+    isSavingAdminIdentity: false
   },
 
   onShow: function () {
@@ -67,7 +75,15 @@ Page({
         isCreatingSession: false,
         isBindingProfile: false,
         isEditingProfile: false,
-        isSavingProfile: false
+        isSavingProfile: false,
+        isAdmin: false,
+        adminQuery: "",
+        adminUsers: [],
+        adminEditingUserId: "",
+        adminEditingName: "",
+        adminEditingStudentNumber: "",
+        isSearchingAdminUsers: false,
+        isSavingAdminIdentity: false
       })
       return
     }
@@ -94,7 +110,14 @@ Page({
         hasStudentId: Boolean(binding.studentNumber),
         isCreatingSession: false,
         isBindingProfile: false,
-        isSavingProfile: false
+        isSavingProfile: false,
+        isAdmin: Boolean(profile.isAdmin),
+        adminUsers: profile.isAdmin ? page.data.adminUsers : [],
+        adminEditingUserId: profile.isAdmin ? page.data.adminEditingUserId : "",
+        adminEditingName: profile.isAdmin ? page.data.adminEditingName : "",
+        adminEditingStudentNumber: profile.isAdmin ? page.data.adminEditingStudentNumber : "",
+        isSearchingAdminUsers: false,
+        isSavingAdminIdentity: false
       })
     }).catch(function (error) {
       if (!page.isCurrentSessionRequest(requestEpoch)) return
@@ -103,7 +126,9 @@ Page({
         serviceStatus: "暂时无法读取个人资料，请稍后重试",
         isCreatingSession: false,
         isBindingProfile: false,
-        isSavingProfile: false
+        isSavingProfile: false,
+        isSearchingAdminUsers: false,
+        isSavingAdminIdentity: false
       })
     })
   },
@@ -139,7 +164,15 @@ Page({
       isCreatingSession: false,
       isBindingProfile: false,
       isEditingProfile: false,
-      isSavingProfile: false
+      isSavingProfile: false,
+      isAdmin: false,
+      adminQuery: "",
+      adminUsers: [],
+      adminEditingUserId: "",
+      adminEditingName: "",
+      adminEditingStudentNumber: "",
+      isSearchingAdminUsers: false,
+      isSavingAdminIdentity: false
     })
     return true
   },
@@ -224,6 +257,71 @@ Page({
 
   onStudentIdInput: function (event) {
     this.setData({ studentId: String(event.detail.value || "").slice(0, this.data.isTestIdentityMode ? 12 : 32) })
+  },
+
+  onAdminQueryInput: function (event) {
+    this.setData({ adminQuery: String(event.detail.value || "").slice(0, 80) })
+  },
+
+  onAdminNameInput: function (event) {
+    this.setData({ adminEditingName: String(event.detail.value || "").slice(0, 80) })
+  },
+
+  onAdminStudentNumberInput: function (event) {
+    this.setData({ adminEditingStudentNumber: String(event.detail.value || "").slice(0, 12) })
+  },
+
+  searchAdminUsers: function () {
+    var page = this
+    if (!this.data.isAdmin || this.data.isSearchingAdminUsers) return
+    var requestEpoch = this.sessionRequestEpoch || 0
+    this.setData({ isSearchingAdminUsers: true, adminUsers: [], adminEditingUserId: "" })
+    api.searchAdminUsers(this.data.adminQuery).then(function (response) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
+      page.setData({ adminUsers: Array.isArray(response.items) ? response.items : [], isSearchingAdminUsers: false })
+    }).catch(function (error) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
+      if (page.showSessionExpired(error)) return
+      page.setData({ isSearchingAdminUsers: false })
+      wx.showToast({ title: serviceMessage(error), icon: "none" })
+    })
+  },
+
+  selectAdminUser: function (event) {
+    var userId = event.currentTarget.dataset.id
+    var user = this.data.adminUsers.filter(function (item) { return item.id === userId })[0]
+    if (!user) return
+    this.setData({
+      adminEditingUserId: user.id,
+      adminEditingName: user.name || "",
+      adminEditingStudentNumber: user.studentNumber || ""
+    })
+  },
+
+  saveAdminIdentity: function () {
+    var page = this
+    if (!this.data.isAdmin || !this.data.adminEditingUserId || this.data.isSavingAdminIdentity) return
+    var requestEpoch = this.sessionRequestEpoch || 0
+    this.setData({ isSavingAdminIdentity: true })
+    api.updateAdminUserIdentity(this.data.adminEditingUserId, {
+      name: this.data.adminEditingName,
+      studentNumber: this.data.adminEditingStudentNumber
+    }).then(function (response) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
+      var user = response.user || {}
+      page.setData({
+        adminUsers: page.data.adminUsers.map(function (item) {
+          return item.id === page.data.adminEditingUserId ? Object.assign({}, item, { name: user.name || item.name, studentNumber: user.studentNumber || item.studentNumber }) : item
+        }),
+        isSavingAdminIdentity: false
+      })
+      wx.showToast({ title: "身份资料已更正", icon: "success" })
+    }).catch(function (error) {
+      if (!page.isCurrentSessionRequest(requestEpoch)) return
+      if (page.showSessionExpired(error)) return
+      page.setData({ isSavingAdminIdentity: false })
+      wx.showToast({ title: serviceMessage(error), icon: "none" })
+    })
   },
 
   bindProfile: function () {

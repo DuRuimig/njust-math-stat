@@ -25,7 +25,8 @@ Page({
     isLiking: false,
     comments: [],
     commentText: "",
-    isSubmittingComment: false
+    isSubmittingComment: false,
+    deletingCommentId: ""
   },
 
   onLoad: function (options) {
@@ -133,7 +134,13 @@ Page({
         hasLiked: Boolean(feedback.likedByMe),
         likeCount: Number(feedback.likeCount) || 0,
         comments: Array.isArray(feedback.comments) ? feedback.comments.map(function (comment) {
-          return { content: comment.content || "", createdAt: comment.createdAt || "" }
+          return {
+            id: comment.id || "",
+            content: comment.content || "",
+            createdAt: comment.createdAt || "",
+            canDelete: Boolean(comment.canDelete),
+            canModerate: Boolean(comment.canModerate)
+          }
         }) : []
       })
       page.courseFeedbackLoading = false
@@ -164,6 +171,7 @@ Page({
         isLiking: false,
         commentText: "",
         isSubmittingComment: false,
+        deletingCommentId: "",
         directoryTeachers: this.data.directoryTeachers.map(function (teacher) {
           return Object.assign({}, teacher, { hasLiked: false, isLiking: false })
         })
@@ -180,6 +188,7 @@ Page({
       isLiking: false,
       commentText: "",
       isSubmittingComment: false,
+      deletingCommentId: "",
       directoryTeachers: this.data.directoryTeachers.map(function (teacher) {
         return Object.assign({}, teacher, { hasLiked: false, isLiking: false })
       })
@@ -305,7 +314,13 @@ Page({
       var comment = response.comment || response
       page.setData({
         feedbackConnected: true,
-        comments: comment ? [{ content: comment.content || "", createdAt: comment.createdAt || "" }].concat(page.data.comments) : page.data.comments,
+        comments: comment ? [{
+          id: comment.id || "",
+          content: comment.content || "",
+          createdAt: comment.createdAt || "",
+          canDelete: Boolean(comment.canDelete),
+          canModerate: Boolean(comment.canModerate)
+        }].concat(page.data.comments) : page.data.comments,
         commentText: "",
         isSubmittingComment: false
       })
@@ -319,6 +334,36 @@ Page({
       }
       page.setData({ feedbackConnected: false, isSubmittingComment: false })
       wx.showToast({ title: message, icon: "none" })
+    })
+  },
+
+  deleteComment: function (event) {
+    var page = this
+    var course = this.data.course
+    var commentId = event.currentTarget.dataset.id
+    var comment = this.data.comments.filter(function (item) { return item.id === commentId })[0]
+    if (!course || !comment || (!comment.canDelete && !comment.canModerate) || this.data.deletingCommentId) return
+    wx.showModal({
+      title: "删除评论",
+      content: "删除后无法恢复，确定继续吗？",
+      success: function (result) {
+        if (!result.confirm) return
+        var requestEpoch = page.sessionRequestEpoch || 0
+        page.setData({ deletingCommentId: commentId })
+        api.deleteComment("courses", backendCourseKey(course), commentId).then(function () {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          page.setData({ comments: page.data.comments.filter(function (item) { return item.id !== commentId }), deletingCommentId: "" })
+          wx.showToast({ title: "评论已删除", icon: "success" })
+        }).catch(function (error) {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          if (page.handleSessionInvalid(error)) {
+            if (shouldShowSessionExpired(error)) wx.showToast({ title: "登录已失效，请重新登录", icon: "none" })
+            return
+          }
+          page.setData({ deletingCommentId: "" })
+          wx.showToast({ title: (error && error.message) || "删除失败，请稍后重试", icon: "none" })
+        })
+      }
     })
   },
 
