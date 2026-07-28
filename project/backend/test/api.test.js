@@ -485,6 +485,10 @@ describe('v1 API 契约', () => {
     const correctedLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber });
     expect(correctedLogin.status).toBe(201);
 
+    const feedbackBeforeBan = await request(adminApp).get(coursePath('feedback')).set(auth(adminToken));
+    expect(feedbackBeforeBan.status).toBe(200);
+    expect(feedbackBeforeBan.body.comments.some((item) => item.id === commentId)).toBe(true);
+
     const banned = await request(adminApp).patch(`${v1}/admin/users/${member.id}/account-status`).set(auth(adminToken)).send({ banned: true });
     expect(banned.status).toBe(200);
     expect(banned.body.user).toEqual({ id: member.id, isBanned: true });
@@ -492,9 +496,15 @@ describe('v1 API 契约', () => {
     const blockedLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber });
     expect(blockedLogin.status).toBe(403);
     expect(blockedLogin.body.error.code).toBe('ACCOUNT_BANNED');
+    const hiddenFeedback = await request(adminApp).get(coursePath('feedback')).set(auth(adminToken));
+    expect(hiddenFeedback.body.likeCount).toBe(feedbackBeforeBan.body.likeCount - 1);
+    expect(hiddenFeedback.body.comments.some((item) => item.id === commentId)).toBe(false);
     expect((await request(adminApp).patch(`${v1}/admin/users/${member.id}/account-status`).set(auth(adminToken)).send({ banned: false })).status).toBe(200);
     const restoredLogin = await request(adminApp).post(`${v1}/auth/test-identity`).send({ name: '已更正测试', studentNumber: updatedNumber });
     expect(restoredLogin.status).toBe(201);
+    const restoredFeedback = await request(adminApp).get(coursePath('feedback')).set(auth(adminToken));
+    expect(restoredFeedback.body.likeCount).toBe(feedbackBeforeBan.body.likeCount);
+    expect(restoredFeedback.body.comments.some((item) => item.id === commentId)).toBe(true);
     const grantAdmin = await request(adminApp).patch(`${v1}/admin/users/${member.id}/admin-role`).set(auth(adminToken)).send({ isAdmin: true });
     expect(grantAdmin.status).toBe(200);
     expect(grantAdmin.body.user).toEqual({ id: member.id, isAdmin: true });
@@ -518,9 +528,21 @@ describe('v1 API 契约', () => {
     const managedSearch = await request(adminApp).get(`${v1}/admin/users?q=${managedNumber}`).set(auth(restoredLogin.body.token));
     expect(managedSearch.status).toBe(200);
     const managedUser = managedSearch.body.items.find((item) => item.studentNumber === managedNumber);
+    const managedAuditId = crypto.randomUUID();
+    db.prepare('INSERT INTO admin_audit_logs (id, actor_user_id, action, target_type, target_id) VALUES (?, ?, ?, ?, ?)').run(managedAuditId, managedUser.id, 'legacy_admin_action', 'user', member.id);
     expect((await request(adminApp).patch(`${v1}/admin/users/${managedUser.id}/account-status`).set(auth(restoredLogin.body.token)).send({ banned: true })).status).toBe(200);
     expect((await request(adminApp).patch(`${v1}/admin/users/${managedUser.id}/account-status`).set(auth(restoredLogin.body.token)).send({ banned: false })).status).toBe(200);
-    expect((await request(adminApp).delete(`${coursePath('comments')}/${managedComment.body.comment.id}`).set(auth(restoredLogin.body.token))).status).toBe(204);
+    const feedbackBeforeDelete = await request(adminApp).get(coursePath('feedback')).set(auth(adminToken));
+    const deletedManagedUser = await request(adminApp).delete(`${v1}/admin/users/${managedUser.id}`).set(auth(restoredLogin.body.token));
+    expect(deletedManagedUser.status).toBe(204);
+    expect(db.prepare('SELECT id FROM users WHERE id = ?').get(managedUser.id)).toBeUndefined();
+    expect(db.prepare('SELECT 1 FROM course_likes WHERE user_id = ?').get(managedUser.id)).toBeUndefined();
+    expect(db.prepare('SELECT 1 FROM course_comments WHERE user_id = ?').get(managedUser.id)).toBeUndefined();
+    expect(db.prepare('SELECT id FROM admin_audit_logs WHERE id = ?').get(managedAuditId)).toBeUndefined();
+    const feedbackAfterDelete = await request(adminApp).get(coursePath('feedback')).set(auth(adminToken));
+    expect(feedbackAfterDelete.body.likeCount).toBe(feedbackBeforeDelete.body.likeCount - 1);
+    expect(feedbackAfterDelete.body.comments.some((item) => item.id === managedComment.body.comment.id)).toBe(false);
+    expect(db.prepare("SELECT action, target_type, target_id FROM admin_audit_logs WHERE action = 'delete_user' AND target_id = ?").get(managedUser.id)).toEqual({ action: 'delete_user', target_type: 'user', target_id: managedUser.id });
     const revokeAdmin = await request(adminApp).patch(`${v1}/admin/users/${member.id}/admin-role`).set(auth(adminToken)).send({ isAdmin: false });
     expect(revokeAdmin.status).toBe(200);
     expect(revokeAdmin.body.user).toEqual({ id: member.id, isAdmin: false });

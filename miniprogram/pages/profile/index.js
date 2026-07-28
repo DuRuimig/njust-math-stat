@@ -46,6 +46,7 @@ Page({
     isSearchingAdminUsers: false,
     isSavingAdminIdentity: false,
     adminStatusChangingUserId: "",
+    adminDeletingUserId: "",
     adminRoleChangingUserId: "",
     primaryTransferUserId: "",
     currentUserId: "",
@@ -94,6 +95,7 @@ Page({
         isSearchingAdminUsers: false,
         isSavingAdminIdentity: false,
         adminStatusChangingUserId: "",
+        adminDeletingUserId: "",
         adminRoleChangingUserId: "",
         primaryTransferUserId: "",
         currentUserId: ""
@@ -134,6 +136,7 @@ Page({
         isSearchingAdminUsers: false,
         isSavingAdminIdentity: false,
         adminStatusChangingUserId: "",
+        adminDeletingUserId: "",
         adminRoleChangingUserId: "",
         primaryTransferUserId: ""
       })
@@ -148,6 +151,7 @@ Page({
         isSearchingAdminUsers: false,
         isSavingAdminIdentity: false,
         adminStatusChangingUserId: "",
+        adminDeletingUserId: "",
         adminRoleChangingUserId: "",
         primaryTransferUserId: ""
       })
@@ -196,6 +200,7 @@ Page({
       isSearchingAdminUsers: false,
       isSavingAdminIdentity: false,
       adminStatusChangingUserId: "",
+      adminDeletingUserId: "",
       adminRoleChangingUserId: "",
       primaryTransferUserId: "",
       currentUserId: ""
@@ -358,10 +363,10 @@ Page({
     var page = this
     var userId = event.currentTarget.dataset.id
     var currentlyBanned = Boolean(event.currentTarget.dataset.banned)
-    if (!this.data.isAdmin || !userId || this.data.adminStatusChangingUserId || this.data.adminRoleChangingUserId || this.data.primaryTransferUserId) return
+    if (!this.data.isAdmin || !userId || this.data.adminStatusChangingUserId || this.data.adminDeletingUserId || this.data.adminRoleChangingUserId || this.data.primaryTransferUserId) return
     wx.showModal({
       title: currentlyBanned ? "解除封禁" : "封禁账号",
-      content: currentlyBanned ? "解除后，该用户可使用已绑定的身份重新登录。" : "封禁后，该用户会立即退出，且不能再次登录。",
+      content: currentlyBanned ? "解除后，该用户可重新登录；此前隐藏的评论和点赞会恢复展示与计数。" : "封禁后，该用户会立即退出且不能再次登录；其评论将隐藏，点赞不再计入数量。",
       success: function (result) {
         if (!result.confirm) return
         var requestEpoch = page.sessionRequestEpoch || 0
@@ -386,11 +391,46 @@ Page({
     })
   },
 
+  deleteAdminUser: function (event) {
+    var page = this
+    var userId = event.currentTarget.dataset.id
+    var user = this.data.adminUsers.filter(function (item) { return item.id === userId })[0]
+    if (!this.data.isAdmin || !user || user.id === this.data.currentUserId || this.data.adminDeletingUserId || this.data.adminStatusChangingUserId || this.data.adminRoleChangingUserId || this.data.primaryTransferUserId) return
+    wx.showModal({
+      title: "永久删除账号",
+      content: "删除“" + (user.name || user.studentNumber || "该用户") + "”后，其账号、会话、评论和点赞将永久清除，且无法恢复。",
+      confirmText: "确认删除",
+      confirmColor: "#a33f32",
+      success: function (result) {
+        if (!result.confirm) return
+        var requestEpoch = page.sessionRequestEpoch || 0
+        page.setData({ adminDeletingUserId: userId })
+        api.deleteAdminUser(userId).then(function () {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          var deletingSelectedUser = page.data.adminEditingUserId === userId
+          page.setData({
+            adminUsers: page.data.adminUsers.filter(function (item) { return item.id !== userId }),
+            adminEditingUserId: deletingSelectedUser ? "" : page.data.adminEditingUserId,
+            adminEditingName: deletingSelectedUser ? "" : page.data.adminEditingName,
+            adminEditingStudentNumber: deletingSelectedUser ? "" : page.data.adminEditingStudentNumber,
+            adminDeletingUserId: ""
+          })
+          wx.showToast({ title: "账号已永久删除", icon: "success" })
+        }).catch(function (error) {
+          if (!page.isCurrentSessionRequest(requestEpoch)) return
+          if (page.showSessionExpired(error)) return
+          page.setData({ adminDeletingUserId: "" })
+          wx.showToast({ title: serviceMessage(error), icon: "none" })
+        })
+      }
+    })
+  },
+
   toggleAdminUserRole: function (event) {
     var page = this
     var userId = event.currentTarget.dataset.id
     var currentlyAdmin = Boolean(event.currentTarget.dataset.admin)
-    if (!this.data.isPrimaryAdmin || !userId || userId === this.data.currentUserId || this.data.adminRoleChangingUserId || this.data.adminStatusChangingUserId || this.data.primaryTransferUserId) return
+    if (!this.data.isPrimaryAdmin || !userId || userId === this.data.currentUserId || this.data.adminRoleChangingUserId || this.data.adminStatusChangingUserId || this.data.adminDeletingUserId || this.data.primaryTransferUserId) return
     wx.showModal({
       title: currentlyAdmin ? "撤销管理员" : "设为管理员",
       content: currentlyAdmin ? "撤销后，该用户将无法管理账号和评论。" : "授予后，该用户可以管理账号和评论。",
@@ -422,10 +462,11 @@ Page({
     var page = this
     var userId = event.currentTarget.dataset.id
     var user = this.data.adminUsers.filter(function (item) { return item.id === userId })[0]
-    if (!this.data.isPrimaryAdmin || !user || user.id === this.data.currentUserId || user.isBanned || this.data.primaryTransferUserId || this.data.adminStatusChangingUserId || this.data.adminRoleChangingUserId) return
+    if (!this.data.isPrimaryAdmin || !user || user.id === this.data.currentUserId || user.isBanned || this.data.primaryTransferUserId || this.data.adminStatusChangingUserId || this.data.adminDeletingUserId || this.data.adminRoleChangingUserId) return
     wx.showModal({
       title: "移交主管理员",
-      content: "移交给“" + (user.name || user.studentNumber || "该用户") + "”后，你将保留普通管理员权限，只有对方可以继续管理管理员和再次移交。",
+      content: "确认移交给“" + (user.name || user.studentNumber || "该用户") + "”？移交后你保留普通管理员权限，只有对方可管理管理员和再次移交。",
+      confirmText: "确认移交",
       success: function (result) {
         if (!result.confirm) return
         var requestEpoch = page.sessionRequestEpoch || 0

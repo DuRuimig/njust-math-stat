@@ -26,6 +26,7 @@ function installCloudRuntime(handler, options = {}) {
   let removals = 0;
   const requests = [];
   const toasts = [];
+  const modals = [];
   global.getApp = () => ({
     globalData: {
       apiMode: 'cloud',
@@ -46,6 +47,10 @@ function installCloudRuntime(handler, options = {}) {
       storedSession = null;
     },
     showToast: (toast) => { toasts.push(toast); },
+    showModal: (modal) => {
+      modals.push(modal);
+      if (typeof options.showModal === 'function') options.showModal(modal);
+    },
     cloud: {
       callContainer: (options) => {
         requests.push(options);
@@ -59,6 +64,7 @@ function installCloudRuntime(handler, options = {}) {
   return {
     requests,
     toasts,
+    modals,
     removalCount: () => removals,
     hasStoredSession: () => Boolean(storedSession),
     getStoredSession: () => storedSession,
@@ -171,6 +177,45 @@ describe('小程序会话与资料请求边界', () => {
 
     expect(runtime.requests).toHaveLength(1);
     expect(runtime.requests[0].data).toEqual({ nickname: '新昵称' });
+  });
+
+  it('永久删号请求使用管理员删除接口', async () => {
+    const runtime = installCloudRuntime((options) => {
+      options.success({ statusCode: 204, data: null });
+    });
+    const api = loadApi();
+    const userId = '11111111-1111-4111-8111-111111111111';
+
+    await expect(api.deleteAdminUser(userId)).resolves.toEqual({});
+
+    expect(runtime.requests).toHaveLength(1);
+    expect(runtime.requests[0]).toMatchObject({ method: 'DELETE', path: `/api/v1/admin/users/${userId}` });
+    await expect(api.deleteAdminUser('bad-id')).rejects.toMatchObject({ code: 'INVALID_ADMIN_USER' });
+  });
+
+  it('永久删号与主管理员移交均需管理员在弹窗中确认', async () => {
+    const runtime = installCloudRuntime((options) => {
+      options.success({ statusCode: 204, data: null });
+    });
+    loadApi();
+    const page = createPage(loadProfilePage());
+    const userId = '22222222-2222-4222-8222-222222222222';
+    page.setData({
+      isAdmin: true,
+      isPrimaryAdmin: true,
+      currentUserId: '11111111-1111-4111-8111-111111111111',
+      adminUsers: [{ id: userId, name: '待处理用户', studentNumber: '900000000002', isAdmin: false, isPrimaryAdmin: false, isBanned: false }],
+    });
+
+    page.deleteAdminUser({ currentTarget: { dataset: { id: userId } } });
+    expect(runtime.modals[0]).toMatchObject({ title: '永久删除账号', confirmText: '确认删除' });
+    runtime.modals[0].success({ confirm: false });
+    expect(runtime.requests).toHaveLength(0);
+
+    page.transferPrimaryAdmin({ currentTarget: { dataset: { id: userId } } });
+    expect(runtime.modals[1]).toMatchObject({ title: '移交主管理员', confirmText: '确认移交' });
+    runtime.modals[1].success({ confirm: false });
+    expect(runtime.requests).toHaveLength(0);
   });
 
   it('教师目录摘要按 20 个标识分批请求并合并完整结果', async () => {

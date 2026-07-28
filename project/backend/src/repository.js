@@ -80,6 +80,23 @@ function createSqliteAdministrativeOperations(db) {
     return { updated: true };
   };
 
+  const deleteUser = (actorUserId, targetUserId, auditId) => {
+    const statement = statements();
+    const assigned = statement.primary.get();
+    const actorIsPrimary = assigned && assigned.user_id === actorUserId;
+    if (!actorIsPrimary && !statement.hasAdminRole.get(actorUserId, adminRoleId)) return { actorNotAdmin: true };
+    const target = statement.user.get(targetUserId);
+    if (!target) return { missing: true };
+    if (targetUserId === actorUserId) return { selfDelete: true };
+    const targetIsAdmin = Boolean(statement.hasAdminRole.get(targetUserId, adminRoleId)) || Boolean(assigned && assigned.user_id === targetUserId);
+    if (targetIsAdmin && !actorIsPrimary) return { protectedAdmin: true };
+    if (assigned && assigned.user_id === targetUserId) return { primaryAdmin: true };
+    db.prepare('DELETE FROM admin_audit_logs WHERE actor_user_id = ?').run(targetUserId);
+    db.prepare('DELETE FROM users WHERE id = ?').run(targetUserId);
+    statement.insertAudit.run(auditId, actorUserId, 'delete_user', 'user', targetUserId);
+    return { deleted: true };
+  };
+
   const setAdminRole = (actorUserId, targetUserId, isAdmin, auditId) => {
     const statement = statements();
     const assigned = statement.primary.get();
@@ -137,6 +154,7 @@ function createSqliteAdministrativeOperations(db) {
   return {
     ensureInitialPrimaryAdmin: (...args) => Promise.resolve(runTransaction(ensureInitial, args)),
     adminSetUserBanned: (...args) => Promise.resolve(runTransaction(setBanned, args)),
+    adminDeleteUser: (...args) => Promise.resolve(runTransaction(deleteUser, args)),
     adminSetUserRole: (...args) => Promise.resolve(runTransaction(setAdminRole, args)),
     adminUpdateIdentity: (...args) => Promise.resolve(runTransaction(updateIdentity, args)),
     transferPrimaryAdmin: (...args) => Promise.resolve(runTransaction(transferPrimary, args)),
@@ -189,6 +207,21 @@ function createMysqlAdministrativeOperations(db) {
       if (banned) await connection.execute('DELETE FROM sessions WHERE user_id = ?', [targetUserId]);
       await connection.execute(insertAuditSql, [auditId, actorUserId, banned ? 'ban_user' : 'unban_user', 'user', targetUserId]);
       return { updated: true };
+    }),
+    adminDeleteUser: (actorUserId, targetUserId, auditId) => withMysqlTransaction(db, async (connection) => {
+      const assigned = await primaryForUpdate(connection);
+      const actorIsPrimary = assigned && assigned.user_id === actorUserId;
+      if (!actorIsPrimary && !await hasAdminRole(connection, actorUserId)) return { actorNotAdmin: true };
+      const target = await userForUpdate(connection, targetUserId);
+      if (!target) return { missing: true };
+      if (targetUserId === actorUserId) return { selfDelete: true };
+      const targetIsAdmin = await hasAdminRole(connection, targetUserId) || Boolean(assigned && assigned.user_id === targetUserId);
+      if (targetIsAdmin && !actorIsPrimary) return { protectedAdmin: true };
+      if (assigned && assigned.user_id === targetUserId) return { primaryAdmin: true };
+      await connection.execute('DELETE FROM admin_audit_logs WHERE actor_user_id = ?', [targetUserId]);
+      await connection.execute('DELETE FROM users WHERE id = ?', [targetUserId]);
+      await connection.execute(insertAuditSql, [auditId, actorUserId, 'delete_user', 'user', targetUserId]);
+      return { deleted: true };
     }),
     adminSetUserRole: (actorUserId, targetUserId, isAdmin, auditId) => withMysqlTransaction(db, async (connection) => {
       const assigned = await primaryForUpdate(connection);
@@ -251,21 +284,21 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     },
     feedback: async (type, targetId, userId) => {
       const target = targetSql(type);
-      const likeCount = Number((await one(`SELECT COUNT(*) AS count FROM ${type}_likes WHERE ${target.column} = ?`, targetId)).count);
-      const comments = await many(`SELECT c.id, c.user_id, c.body, c.created_at, u.nickname AS author_nickname FROM ${type}_comments c JOIN users u ON u.id = c.user_id WHERE c.${target.column} = ? ORDER BY c.created_at DESC`, targetId);
-      const liked = userId ? Boolean(await one(`SELECT 1 FROM ${type}_likes WHERE user_id = ? AND ${target.column} = ?`, userId, targetId)) : false;
+      const likeCount = Number((await one(`SELECT COUNT(*) AS count FROM ${type}_likes l JOIN users u ON u.id = l.user_id AND u.is_banned = 0 WHERE l.${target.column} = ?`, targetId)).count);
+      const comments = await many(`SELECT c.id, c.user_id, c.body, c.created_at, u.nickname AS author_nickname FROM ${type}_comments c JOIN users u ON u.id = c.user_id AND u.is_banned = 0 WHERE c.${target.column} = ? ORDER BY c.created_at DESC`, targetId);
+      const liked = userId ? Boolean(await one(`SELECT 1 FROM ${type}_likes l JOIN users u ON u.id = l.user_id AND u.is_banned = 0 WHERE l.user_id = ? AND l.${target.column} = ?`, userId, targetId)) : false;
       return { likeCount, liked, comments };
     },
     like: async (type, userId, targetId) => {
       const target = targetSql(type);
       const result = await run(`INSERT INTO ${type}_likes (user_id, ${target.column}) VALUES (?, ?) ${insertIgnore.replace('TARGET_ID', target.column)}`, userId, targetId);
-      const likeCount = Number((await one(`SELECT COUNT(*) AS count FROM ${type}_likes WHERE ${target.column} = ?`, targetId)).count);
+      const likeCount = Number((await one(`SELECT COUNT(*) AS count FROM ${type}_likes l JOIN users u ON u.id = l.user_id AND u.is_banned = 0 WHERE l.${target.column} = ?`, targetId)).count);
       return { created: Boolean(result.changes), likeCount };
     },
     unlike: async (type, userId, targetId) => {
       const target = targetSql(type);
       await run(`DELETE FROM ${type}_likes WHERE user_id = ? AND ${target.column} = ?`, userId, targetId);
-      return Number((await one(`SELECT COUNT(*) AS count FROM ${type}_likes WHERE ${target.column} = ?`, targetId)).count);
+      return Number((await one(`SELECT COUNT(*) AS count FROM ${type}_likes l JOIN users u ON u.id = l.user_id AND u.is_banned = 0 WHERE l.${target.column} = ?`, targetId)).count);
     },
     canComment: (type, userId, targetId) => one(`SELECT 1 FROM ${type}_likes WHERE user_id = ? AND ${type}_id = ?`, userId, targetId),
     createComment: async (type, id, userId, targetId, body) => {
@@ -277,8 +310,8 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     teacherSummary: async (keys, userId) => {
       if (!keys.length) return [];
       const placeholders = keys.map(() => '?').join(', ');
-      const rows = await many(`SELECT t.directory_key AS teacherId, COUNT(l.user_id) AS likeCount FROM teachers t LEFT JOIN teacher_likes l ON l.teacher_id = t.id WHERE t.directory_key IN (${placeholders}) GROUP BY t.id, t.directory_key ORDER BY t.directory_key`, ...keys);
-      const liked = userId ? new Set((await many(`SELECT t.directory_key FROM teachers t JOIN teacher_likes l ON l.teacher_id = t.id WHERE l.user_id = ? AND t.directory_key IN (${placeholders})`, userId, ...keys)).map((row) => row.directory_key)) : null;
+      const rows = await many(`SELECT t.directory_key AS teacherId, COUNT(u.id) AS likeCount FROM teachers t LEFT JOIN teacher_likes l ON l.teacher_id = t.id LEFT JOIN users u ON u.id = l.user_id AND u.is_banned = 0 WHERE t.directory_key IN (${placeholders}) GROUP BY t.id, t.directory_key ORDER BY t.directory_key`, ...keys);
+      const liked = userId ? new Set((await many(`SELECT t.directory_key FROM teachers t JOIN teacher_likes l ON l.teacher_id = t.id JOIN users u ON u.id = l.user_id AND u.is_banned = 0 WHERE l.user_id = ? AND t.directory_key IN (${placeholders})`, userId, ...keys)).map((row) => row.directory_key)) : null;
       return rows.map((row) => ({ teacherId: row.teacherId, likeCount: Number(row.likeCount), ...(liked ? { likedByMe: liked.has(row.teacherId) } : {}) }));
     },
     allTeacherKeys: () => many('SELECT directory_key FROM teachers ORDER BY directory_key'),

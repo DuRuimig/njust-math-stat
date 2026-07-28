@@ -117,11 +117,32 @@ describe('MySQL 管理员事务', () => {
     expect(fixture.state.sql.some((sql) => sql.startsWith('INSERT INTO admin_audit_logs'))).toBe(true);
   });
 
+  it('永久删号在 MySQL 中清理目标审计记录并提交事务', async () => {
+    const fixture = mysqlTransactionFixture();
+    const repository = createRepository(fixture.database);
+
+    await expect(repository.adminDeleteUser(fixture.actorUserId, fixture.targetUserId, 'audit-id')).resolves.toEqual({ deleted: true });
+
+    expect(fixture.state).toMatchObject({ began: 1, committed: 1, rolledBack: 0, released: 1 });
+    expect(fixture.state.sql.some((sql) => sql.startsWith('DELETE FROM admin_audit_logs WHERE actor_user_id'))).toBe(true);
+    expect(fixture.state.sql.some((sql) => sql.startsWith('DELETE FROM users WHERE id'))).toBe(true);
+    expect(fixture.state.sql.some((sql) => sql.startsWith('INSERT INTO admin_audit_logs'))).toBe(true);
+  });
+
   it('审计写入失败时回滚 MySQL 权限事务', async () => {
     const fixture = mysqlTransactionFixture({ failAudit: true });
     const repository = createRepository(fixture.database);
 
     await expect(repository.transferPrimaryAdmin(fixture.actorUserId, fixture.targetUserId, 'audit-id')).rejects.toThrow('forced audit failure');
+
+    expect(fixture.state).toMatchObject({ began: 1, committed: 0, rolledBack: 1, released: 1 });
+  });
+
+  it('永久删号的审计写入失败时回滚 MySQL 事务', async () => {
+    const fixture = mysqlTransactionFixture({ failAudit: true });
+    const repository = createRepository(fixture.database);
+
+    await expect(repository.adminDeleteUser(fixture.actorUserId, fixture.targetUserId, 'audit-id')).rejects.toThrow('forced audit failure');
 
     expect(fixture.state).toMatchObject({ began: 1, committed: 0, rolledBack: 1, released: 1 });
   });

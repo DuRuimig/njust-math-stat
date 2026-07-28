@@ -417,6 +417,14 @@ function updateAdminUserStatus(userId, banned) {
   return request({ method: "PATCH", path: API_PREFIX + "/admin/users/" + encodeURIComponent(safeUserId) + "/account-status", data: { banned: banned } })
 }
 
+function deleteAdminUser(userId) {
+  var safeUserId = cleanText(userId, 36)
+  if (!/^[0-9a-f-]{36}$/i.test(safeUserId)) {
+    return Promise.reject(apiError("账号标识无效", "INVALID_ADMIN_USER"))
+  }
+  return request({ method: "DELETE", path: API_PREFIX + "/admin/users/" + encodeURIComponent(safeUserId) })
+}
+
 function updateAdminUserRole(userId, isAdmin) {
   var safeUserId = cleanText(userId, 36)
   if (!/^[0-9a-f-]{36}$/i.test(safeUserId) || typeof isAdmin !== "boolean") {
@@ -462,6 +470,7 @@ module.exports = {
   searchAdminUsers: searchAdminUsers,
   updateAdminUserIdentity: updateAdminUserIdentity,
   updateAdminUserStatus: updateAdminUserStatus,
+  deleteAdminUser: deleteAdminUser,
   updateAdminUserRole: updateAdminUserRole,
   transferPrimaryAdmin: transferPrimaryAdmin
 }

@@ -313,6 +313,17 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (result.protectedAdmin) return apiError(res, 403, 'ADMIN_TARGET_PROTECTED', '普通管理员不能封禁其他管理员');
     res.json({ user: { id: userId, isBanned: parsed.data.banned } });
   }));
+  api.delete('/admin/users/:userId', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+    const userId = String(req.params.userId || '');
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '账号标识格式无效');
+    const result = await repository.adminDeleteUser(req.user.id, userId, crypto.randomUUID());
+    if (result.actorNotAdmin) return apiError(res, 403, 'ADMIN_REQUIRED', '需要管理员权限');
+    if (result.missing) return apiError(res, 404, 'USER_NOT_FOUND', '用户不存在');
+    if (result.selfDelete) return apiError(res, 400, 'SELF_DELETE_FORBIDDEN', '不能删除当前管理员账号');
+    if (result.protectedAdmin) return apiError(res, 403, 'ADMIN_TARGET_PROTECTED', '普通管理员不能删除其他管理员');
+    if (result.primaryAdmin) return apiError(res, 409, 'PRIMARY_ADMIN_DELETE_FORBIDDEN', '主管理员不能被删除，请先移交主管理员权限');
+    res.status(204).end();
+  }));
   api.patch('/admin/users/:userId/admin-role', asyncHandler(requireUser), asyncHandler(requirePrimaryAdmin), asyncHandler(async (req, res) => {
     const parsed = adminRoleSchema.safeParse(req.body);
     const userId = String(req.params.userId || '');

@@ -54,6 +54,8 @@
 .admin-ban-button { flex: 0 0 132rpx; min-width: 132rpx; margin: 0; padding: 0 10rpx; border: 1rpx solid #d99a92; border-radius: 8rpx; background: #fff5f3; color: #a33f32; font-size: 22rpx; }
 .admin-ban-button::after { border: 0; }
 .admin-ban-button.unban { border-color: #89b89a; background: #f0f8f1; color: #39704b; }
+.admin-delete-button { flex: 1; min-width: 132rpx; margin: 0; padding: 0 8rpx; border: 1rpx solid #c97168; border-radius: 8rpx; background: #fff0ee; color: #9b3027; font-size: 20rpx; }
+.admin-delete-button::after { border: 0; }
 .admin-actions { display: flex; flex: 0 0 132rpx; flex-direction: column; justify-content: space-between; gap: 8rpx; }
 .admin-actions .admin-ban-button { flex: 1; min-width: 132rpx; padding: 0 8rpx; font-size: 20rpx; }
 .admin-role-button { flex: 1; min-width: 132rpx; margin: 0; padding: 0 8rpx; border: 1rpx solid #a8b6e8; border-radius: 8rpx; background: #f3f5ff; color: var(--indigo); font-size: 20rpx; }
