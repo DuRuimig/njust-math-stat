@@ -57,4 +57,23 @@ describe('课程任课历史与最新教材', () => {
 
     expect(teachers.map((teacher) => teacher.name)).toEqual(['Alice', 'Dora', 'Bob', 'Charlie']);
   });
+
+  it('包含官网名录教师，并保留当前官网未列出的历史任课教师', () => {
+    const teachers = library.getTeachers();
+
+    expect(teachers).toHaveLength(95);
+    expect(library.getTeacherByName('安红利')).toMatchObject({
+      department: '数学系',
+      title: '教授',
+      advisorQualifications: '博士生导师',
+    });
+    expect(library.getTeacherByName('张霞')).toMatchObject({
+      department: '大学数学基础教学中心',
+      title: '未收录',
+      advisorQualifications: '研究生院导师目录未列明（不作资格否定）',
+    });
+    expect(library.getTeacherByName('丁利')).toMatchObject({
+      department: '未收录',
+    });
+  });
 });

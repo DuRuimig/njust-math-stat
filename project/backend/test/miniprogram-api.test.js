@@ -4,6 +4,8 @@ const profilePagePath = require.resolve('../../../miniprogram/pages/profile/inde
 const courseDetailPagePath = require.resolve('../../../miniprogram/pages/course-detail/index');
 const teachingPagePath = require.resolve('../../../miniprogram/pages/teaching/index');
 const teacherDetailPagePath = path.resolve(__dirname, '../../../miniprogram/pages/teacher-detail/index.js');
+const teacherSummaryBatchSize = 20;
+const teacherSummaryRequestCount = Math.ceil(require('../../../miniprogram/data/course-library').teachers.length / teacherSummaryBatchSize);
 
 const originalWx = global.wx;
 const originalGetApp = global.getApp;
@@ -753,15 +755,15 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    expect(pending).toHaveLength(3);
+    expect(pending).toHaveLength(teacherSummaryRequestCount);
     api.persistSession({ token: 'new-session', mode: 'wechat', expiresInSeconds: 60 });
     pending[0].success({ statusCode: 401, data: { error: { code: 'SESSION_INVALID', message: '旧会话已失效' } } });
     await flushPromises();
     await flushPromises();
 
-    expect(pending).toHaveLength(6);
-    expect(pending[3].header.Authorization).toBe('Bearer new-session');
-    succeedTeacherSummary(pending.slice(3, 6), { likeCount: 6, likedByMe: true });
+    expect(pending).toHaveLength(teacherSummaryRequestCount * 2);
+    expect(pending[teacherSummaryRequestCount].header.Authorization).toBe('Bearer new-session');
+    succeedTeacherSummary(pending.slice(teacherSummaryRequestCount, teacherSummaryRequestCount * 2), { likeCount: 6, likedByMe: true });
     await flushPromises();
     await flushPromises();
 
@@ -778,17 +780,17 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 2 });
+    succeedTeacherSummary(pending.slice(0, teacherSummaryRequestCount), { likeCount: 2 });
     await flushPromises();
     const teacher = page.data.teachers[0];
     page.likeTeacher({ currentTarget: { dataset: { id: teacher.id } } });
     api.persistSession({ token: 'new-session', mode: 'wechat', expiresInSeconds: 60 });
-    pending[3].success({ statusCode: 401, data: { error: { code: 'SESSION_INVALID', message: '旧会话已失效' } } });
+    pending[teacherSummaryRequestCount].success({ statusCode: 401, data: { error: { code: 'SESSION_INVALID', message: '旧会话已失效' } } });
     await flushPromises();
     await flushPromises();
 
-    expect(pending).toHaveLength(7);
-    expect(pending[4].header.Authorization).toBe('Bearer new-session');
+    expect(pending).toHaveLength(teacherSummaryRequestCount * 2 + 1);
+    expect(pending[teacherSummaryRequestCount + 1].header.Authorization).toBe('Bearer new-session');
     expect(runtime.toasts.some((toast) => toast.title === '登录已失效，请重新登录')).toBe(false);
   });
 
@@ -800,19 +802,19 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    expect(pending).toHaveLength(3);
-    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 7 });
+    expect(pending).toHaveLength(teacherSummaryRequestCount);
+    succeedTeacherSummary(pending.slice(0, teacherSummaryRequestCount), { likeCount: 7 });
     await flushPromises();
 
     const teacher = page.data.teachers[0];
     page.likeTeacher({ currentTarget: { dataset: { id: teacher.id } } });
     page.loadTeacherFeedbackSummary();
-    expect(pending).toHaveLength(7);
+    expect(pending).toHaveLength(teacherSummaryRequestCount * 2 + 1);
 
-    pending[4].success({ statusCode: 401, data: { error: { code: serverCode, message: '会话已失效' } } });
+    pending[teacherSummaryRequestCount + 1].success({ statusCode: 401, data: { error: { code: serverCode, message: '会话已失效' } } });
     await flushPromises();
     await flushPromises();
-    pending[3].success({ statusCode: 201, data: { liked: true, likeCount: 8 } });
+    pending[teacherSummaryRequestCount].success({ statusCode: 201, data: { liked: true, likeCount: 8 } });
     await flushPromises();
     await flushPromises();
 
@@ -835,12 +837,12 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 3 });
+    succeedTeacherSummary(pending.slice(0, teacherSummaryRequestCount), { likeCount: 3 });
     await flushPromises();
 
     const teacher = page.data.teachers[0];
     page.likeTeacher({ currentTarget: { dataset: { id: teacher.id } } });
-    rejectLike(pending[3]);
+    rejectLike(pending[teacherSummaryRequestCount]);
     await flushPromises();
     await flushPromises();
 
@@ -860,12 +862,12 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 4 });
+    succeedTeacherSummary(pending.slice(0, teacherSummaryRequestCount), { likeCount: 4 });
     await flushPromises();
 
     const teacher = page.data.teachers[0];
     page.likeTeacher({ currentTarget: { dataset: { id: teacher.id } } });
-    pending[3].success({ statusCode: 201, data: { liked: true, likeCount: 5 } });
+    pending[teacherSummaryRequestCount].success({ statusCode: 201, data: { liked: true, likeCount: 5 } });
     await flushPromises();
     await flushPromises();
 
@@ -883,11 +885,11 @@ describe('教师目录页会话状态', () => {
     page.onShow();
     runtime.setStoredSession({ token: 'new-session', mode: 'wechat', expiresAt: Date.now() + 60_000 });
     page.onShow();
-    expect(pending).toHaveLength(6);
+    expect(pending).toHaveLength(teacherSummaryRequestCount * 2);
 
-    succeedTeacherSummary(pending.slice(3, 6), { likeCount: 2, likedByMe: true });
+    succeedTeacherSummary(pending.slice(teacherSummaryRequestCount, teacherSummaryRequestCount * 2), { likeCount: 2, likedByMe: true });
     await flushPromises();
-    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 9 });
+    succeedTeacherSummary(pending.slice(0, teacherSummaryRequestCount), { likeCount: 9 });
     await flushPromises();
     await flushPromises();
 

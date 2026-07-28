@@ -102,10 +102,10 @@ describe('v1 API 契约', () => {
     expect(response.body.error.code).toBe('NOT_FOUND');
   });
 
-  it('44 个教师目录稳定键与 seed 口径一致', () => {
-    expect(courseLibrary.teachers).toHaveLength(44);
+  it('95 个教师目录稳定键与 seed 口径一致', () => {
+    expect(courseLibrary.teachers).toHaveLength(95);
     const directoryKeys = courseLibrary.teachers.map(teacherDirectoryKey);
-    expect(new Set(directoryKeys).size).toBe(44);
+    expect(new Set(directoryKeys).size).toBe(95);
     expect(directoryKeys.every((key) => /^directory:[a-f0-9]{64}$/.test(key))).toBe(true);
   });
 
