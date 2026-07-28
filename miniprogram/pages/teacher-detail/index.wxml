@@ -1,0 +1,55 @@
+<view class="page-shell teacher-detail-page">
+  <block wx:if="{{teacher}}">
+    <view class="teacher-heading">
+      <view class="teacher-mark">{{teacher.name}}</view>
+      <view class="teacher-heading-copy">
+        <text class="page-title">{{teacher.name}}</text>
+        <text class="page-lead">{{teacher.department}}</text>
+      </view>
+    </view>
+
+    <view class="teacher-summary surface">
+      <view class="teacher-summary-copy">
+        <text class="summary-label">职称</text>
+        <text class="summary-value">{{teacher.title}}</text>
+      </view>
+      <button class="like-control {{hasLiked ? 'liked' : ''}}" bindtap="likeTeacher" loading="{{isLiking}}" disabled="{{!isLoggedIn || isLiking}}" aria-label="{{hasLiked ? '取消点赞，点赞数 ' + likeCount : '点赞，点赞数 ' + likeCount}}">
+        <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!hasLiked}}" class="like-heart-cutout"></view></view></view>
+        <text class="like-count">{{likeCount}}</text>
+      </button>
+    </view>
+
+    <view class="section-head"><text class="section-title">相关课程</text></view>
+    <view wx:if="{{relatedCourses.length}}" class="course-list surface">
+      <view wx:for="{{relatedCourses}}" wx:key="key" class="course-row" data-key="{{item.key}}" bindtap="openCourse">
+        <view class="course-copy">
+          <text class="course-name">{{item.name}}</text>
+          <text class="course-meta">{{item.courseCodeLabel}}{{item.displayMajorLabel ? ' · ' + item.displayMajorLabel : ''}}</text>
+        </view>
+        <text class="course-term">{{item.sourceTermLabel}}</text>
+      </view>
+    </view>
+    <view wx:else class="surface empty-state compact-empty"><text class="empty-title">暂无关联课程</text></view>
+
+    <view class="section-head"><text class="section-title">教师评价</text></view>
+    <view class="feedback-card surface">
+      <view class="comment-composer">
+        <textarea class="field-textarea" value="{{commentText}}" maxlength="300" placeholder="{{hasLiked ? '写下你的评价' : '点赞后可评价教师'}}" disabled="{{!isLoggedIn || !hasLiked || isSubmittingComment}}" bindinput="onCommentInput"></textarea>
+        <view class="comment-action"><text>{{commentText.length}}/300</text><button class="primary-button comment-submit" loading="{{isSubmittingComment}}" disabled="{{!isLoggedIn || !hasLiked || isSubmittingComment}}" bindtap="submitComment">发布评价</button></view>
+      </view>
+      <view wx:if="{{comments.length}}" class="comment-list">
+        <view wx:for="{{comments}}" wx:key="id" class="comment-item">
+          <view class="comment-meta"><text>{{item.authorNickname}}</text><view class="comment-meta-actions"><text wx:if="{{item.createdAtLabel}}">{{item.createdAtLabel}}</text><button wx:if="{{item.canDelete || item.canModerate}}" class="comment-delete" data-id="{{item.id}}" loading="{{deletingCommentId === item.id}}" disabled="{{deletingCommentId && deletingCommentId !== item.id}}" bindtap="deleteComment">删除</button></view></view>
+          <text class="comment-content">{{item.content}}</text>
+        </view>
+      </view>
+      <view wx:else class="comment-empty"><text>暂无评价</text></view>
+    </view>
+  </block>
+
+  <view wx:else class="surface empty-state missing-teacher">
+    <text class="empty-title">未找到教师</text>
+    <text class="empty-copy">该教师资料可能已经更新，请从教师目录重新进入。</text>
+    <button class="secondary-button back-button" bindtap="goTeaching">返回教师目录</button>
+  </view>
+</view>

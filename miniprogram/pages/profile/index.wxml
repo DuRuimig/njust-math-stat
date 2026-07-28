@@ -33,7 +33,16 @@
       <view class="readonly-row"><text>姓名</text><text>{{studentName}}</text></view>
       <view class="readonly-row"><text>学号</text><text>{{studentId}}</text></view>
        <text class="readonly-note">姓名与学号为私有只读资料，绝不会展示在匿名评论中。</text>
-      <view class="contact-placeholder"><text class="contact-placeholder-title">身份资料如有误，请联系管理员更正</text><text class="contact-placeholder-copy">管理员更正后，该账号需要使用新的姓名和学号重新登录。</text></view>
+      <view class="contact-placeholder {{isAdminContactExpanded ? 'expanded' : ''}}" bindtap="toggleAdminContact">
+        <view class="contact-placeholder-heading">
+          <text class="contact-placeholder-title">身份资料如有误，请联系管理员更正</text>
+          <text class="contact-toggle">{{isAdminContactExpanded ? '收起' : '展开'}}</text>
+        </view>
+        <view wx:if="{{isAdminContactExpanded}}" class="contact-details">
+          <text class="contact-placeholder-copy">管理员更正后，该账号需要使用新的姓名和学号重新登录。</text>
+          <button class="contact-admin-button" catchtap="openAdminQr">联系管理员</button>
+        </view>
+      </view>
     </block>
   </view>
 
@@ -44,5 +53,14 @@
     <view wx:if="{{adminUsers.length}}" class="admin-user-list"><view wx:for="{{adminUsers}}" wx:key="id" class="admin-user-wrap"><view class="admin-user-item {{adminEditingUserId === item.id ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="selectAdminUser"><view><text>{{item.name || '未绑定姓名'}}</text><text class="admin-user-status {{item.isBanned ? 'banned' : ''}}">{{item.isBanned ? '已封禁' : (item.isPrimaryAdmin ? '主管理员' : (item.isAdmin ? '管理员' : '正常'))}}</text></view><text>{{item.studentNumber || '未绑定学号'}}</text></view><view class="admin-actions"><button wx:if="{{item.id !== currentUserId && (!item.isAdmin || isPrimaryAdmin)}}" class="admin-ban-button {{item.isBanned ? 'unban' : ''}}" data-id="{{item.id}}" data-banned="{{item.isBanned}}" loading="{{adminStatusChangingUserId === item.id}}" disabled="{{adminStatusChangingUserId || adminRoleChangingUserId || primaryTransferUserId}}" bindtap="toggleAdminUserStatus">{{item.isBanned ? '解除封禁' : '封禁账号'}}</button><button wx:if="{{isPrimaryAdmin && item.id !== currentUserId && !item.isPrimaryAdmin && !item.isBanned}}" class="admin-role-button {{item.isAdmin ? 'revoke' : ''}}" data-id="{{item.id}}" data-admin="{{item.isAdmin}}" loading="{{adminRoleChangingUserId === item.id}}" disabled="{{adminStatusChangingUserId || adminRoleChangingUserId || primaryTransferUserId}}" bindtap="toggleAdminUserRole">{{item.isAdmin ? '撤销管理' : '设为管理员'}}</button><button wx:if="{{isPrimaryAdmin && item.id !== currentUserId && !item.isPrimaryAdmin && !item.isBanned}}" class="primary-transfer-button" data-id="{{item.id}}" loading="{{primaryTransferUserId === item.id}}" disabled="{{adminStatusChangingUserId || adminRoleChangingUserId || primaryTransferUserId}}" bindtap="transferPrimaryAdmin">移交主管理员</button></view></view></view>
     <text wx:if="{{!isSearchingAdminUsers && adminQuery && !adminUsers.length}}" class="admin-empty">没有找到匹配用户</text>
     <view wx:if="{{adminEditingUserId}}" class="admin-editor"><view class="field-group"><text class="field-label">姓名</text><input class="field-input" value="{{adminEditingName}}" maxlength="80" bindinput="onAdminNameInput" /></view><view class="field-group"><text class="field-label">12 位学号</text><input class="field-input" value="{{adminEditingStudentNumber}}" maxlength="12" bindinput="onAdminStudentNumberInput" /></view><button class="primary-button save-profile" loading="{{isSavingAdminIdentity}}" disabled="{{isSavingAdminIdentity}}" bindtap="saveAdminIdentity">保存更正</button></view>
+  </view>
+
+  <view wx:if="{{isAdminQrOpen}}" class="admin-qr-overlay" bindtap="closeAdminQr">
+    <view class="admin-qr-dialog" catchtap="keepAdminQrOpen">
+      <view class="admin-qr-head"><text class="admin-qr-title">联系管理员</text><button class="admin-qr-close" bindtap="closeAdminQr" aria-label="关闭">×</button></view>
+      <text class="admin-qr-copy">扫码添加管理员，申请更正姓名或学号。</text>
+      <image wx:if="{{!adminQrImageError}}" class="admin-qr-image" src="/assets/images/admin-wechat-qr.jpg" mode="aspectFit" binderror="onAdminQrImageError"></image>
+      <view wx:else class="admin-qr-error"><text>二维码加载失败，请稍后重试</text></view>
+    </view>
   </view>
 </view>

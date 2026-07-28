@@ -2,6 +2,7 @@
 .feedback-status { margin-bottom: 16rpx; padding: 16rpx 20rpx; border: 1rpx solid #edc9a8; border-radius: 10rpx; background: var(--orange-soft); color: #784125; font-size: 23rpx; line-height: 1.5; }
 .teacher-list { display: flex; flex-direction: column; gap: 14rpx; }
 .teacher-card { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 20rpx; }
+.teacher-card:active { background: #f8f9fd; }
 .teacher-copy { flex: 1; min-width: 0; }
 .teacher-name { display: block; margin-bottom: 5rpx; overflow: hidden; color: var(--ink); font-size: 29rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .like-control { display: inline-flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; min-width: 88rpx; min-height: 88rpx; padding: 8rpx 14rpx; box-sizing: border-box; border: 1rpx solid #d8dee9; border-radius: 10rpx; background: #fff; color: #707b8e; font-size: 22rpx; font-weight: 700; line-height: 1.15; text-align: center; }

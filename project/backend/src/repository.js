@@ -252,7 +252,7 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     feedback: async (type, targetId, userId) => {
       const target = targetSql(type);
       const likeCount = Number((await one(`SELECT COUNT(*) AS count FROM ${type}_likes WHERE ${target.column} = ?`, targetId)).count);
-      const comments = await many(`SELECT id, user_id, body, created_at FROM ${type}_comments WHERE ${target.column} = ? ORDER BY created_at DESC`, targetId);
+      const comments = await many(`SELECT c.id, c.user_id, c.body, c.created_at, u.nickname AS author_nickname FROM ${type}_comments c JOIN users u ON u.id = c.user_id WHERE c.${target.column} = ? ORDER BY c.created_at DESC`, targetId);
       const liked = userId ? Boolean(await one(`SELECT 1 FROM ${type}_likes WHERE user_id = ? AND ${target.column} = ?`, userId, targetId)) : false;
       return { likeCount, liked, comments };
     },
@@ -270,7 +270,7 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     canComment: (type, userId, targetId) => one(`SELECT 1 FROM ${type}_likes WHERE user_id = ? AND ${type}_id = ?`, userId, targetId),
     createComment: async (type, id, userId, targetId, body) => {
       await run(`INSERT INTO ${type}_comments (id, user_id, ${type}_id, body) VALUES (?, ?, ?, ?)`, id, userId, targetId, body);
-      return one(`SELECT id, user_id, body, created_at FROM ${type}_comments WHERE id = ?`, id);
+      return one(`SELECT c.id, c.user_id, c.body, c.created_at, u.nickname AS author_nickname FROM ${type}_comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?`, id);
     },
     findComment: (type, commentId, targetId) => one(`SELECT id, user_id FROM ${type}_comments WHERE id = ? AND ${type}_id = ?`, commentId, targetId),
     deleteComment: (type, commentId, targetId) => run(`DELETE FROM ${type}_comments WHERE id = ? AND ${type}_id = ?`, commentId, targetId),

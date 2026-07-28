@@ -67,6 +67,12 @@ Page({
     this.applyFilter()
   },
 
+  openTeacher: function (event) {
+    var directoryId = event.currentTarget.dataset.id
+    if (!directoryId) return
+    wx.navigateTo({ url: "/pages/teacher-detail/index?id=" + encodeURIComponent(directoryId) })
+  },
+
   loadTeacherFeedbackSummary: function () {
     var page = this
     var teachers = library.getTeachers()

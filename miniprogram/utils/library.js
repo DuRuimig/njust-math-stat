@@ -175,8 +175,32 @@ function valueLabel(value, values) {
   return distinct(values).join(" / ") || "待补充"
 }
 
+function sourceTermRank(value) {
+  var match = String(value || "").match(/^(\d{4})(春|夏|秋|冬)$/)
+  if (!match) return 0
+  return Number(match[1]) * 10 + ({ "春": 1, "夏": 2, "秋": 3, "冬": 4 }[match[2]] || 0)
+}
+
+function sourceTermLabel(value) {
+  var match = String(value || "").match(/^(\d{4})(春|夏|秋|冬)$/)
+  return match ? match[1] + "年" + match[2] : String(value || "")
+}
+
+function sortedSourceTerms(values) {
+  return distinct(values).sort(function (left, right) {
+    return sourceTermRank(left) - sourceTermRank(right) || left.localeCompare(right, "zh-CN")
+  })
+}
+
+function textbookDisplay(record) {
+  var book = textbookText(record)
+  if (book === "来源标注：无指定教材") return "无指定教材"
+  var publisher = asText(record && record.publisher, "")
+  return publisher ? book + " · " + publisher : book
+}
+
 function textbooksForCourse(course) {
-  var textbooks = asArray(currentLibrary().offerings).filter(function (offering) {
+  var records = asArray(currentLibrary().offerings).filter(function (offering) {
     var offeringCode = offering.courseCode || offering.code || offering.courseId
     var hasOfferingCode = offeringCode !== undefined && offeringCode !== null && offeringCode !== ""
     if (hasOfferingCode) {
@@ -184,10 +208,17 @@ function textbooksForCourse(course) {
     }
     var offeringName = offering.courseName || offering.name
     return offeringName && normalizeCourseName(offeringName) === normalizeCourseName(course.name)
-  }).map(function (offering) {
-    return textbookText(offering)
   })
-  return distinct(textbooks).length ? distinct(textbooks) : ["教材待补充"]
+  asArray(currentLibrary().teachingHistory).forEach(function (record) {
+    if (course.codeValues.indexOf(String(record.courseCode || "")) >= 0) records.push(record)
+  })
+  if (!records.length) return ["教材待补充"]
+  var latestRank = Math.max.apply(null, records.map(function (record) { return sourceTermRank(record.sourceTerm || record.sourceSemester) }))
+  var latestRecords = latestRank ? records.filter(function (record) {
+    return sourceTermRank(record.sourceTerm || record.sourceSemester) === latestRank
+  }) : records
+  var textbooks = distinct(latestRecords.map(textbookDisplay))
+  return textbooks.length ? textbooks : ["教材待补充"]
 }
 
 function aggregateCourses() {
@@ -347,6 +378,7 @@ function normalizeOffering(offering, index) {
     return !hasUsableCode && normalizedOfferingName && normalizedOfferingName === normalizeCourseName(course.name)
   })[0] || null
   var resolvedMatchMethod = matchedVariant ? "code-and-major" : (matched && hasUsableCode ? "code" : (matched ? "name" : "unmatched"))
+  var sourceTerm = asText(offering.sourceTerm || offering.sourceSemester, "来源学期待补充")
   return {
     key: code + "::" + major + "::" + index,
     courseKey: matched ? matched.key : "",
@@ -356,13 +388,16 @@ function normalizeOffering(offering, index) {
     courseName: courseNameForOffering(offering, matched),
     major: major,
     term: asText(offering.term || offering.fixedTerm || offering.scheduleTerm, "开课周期待补充"),
-    sourceTerm: asText(offering.sourceTerm || offering.sourceSemester, "来源学期待补充"),
+    sourceTerm: sourceTerm,
+    sourceTermLabel: sourceTermLabel(sourceTerm),
+    latestTermRank: sourceTermRank(sourceTerm),
     teacher: asText(offering.teacher || offering.teacherName, "教师待补充"),
     offeringUnit: asText(offering.offeringUnit || offering.offering_unit, "开课院系待补充"),
     textbook: textbookText(offering),
     publisher: asText(offering.publisher, "待补充"),
     editor: asText(offering.editor || offering.author, "待补充"),
-    source: asText(offering.source || offering.sourceLabel, "开课与教材匹配材料")
+    source: asText(offering.source || offering.sourceLabel, "开课与教材匹配材料"),
+    scope: asText(offering.scope, "major")
   }
 }
 
@@ -389,10 +424,44 @@ function getOfferingsForCourse(course) {
   })
 }
 
+function getCourseLevelTeachingRows() {
+  var courses = getCourses()
+  var rows = []
+  asArray(currentLibrary().teachingHistory).forEach(function (record, index) {
+    var code = asText(record.courseCode || record.code, "待补充")
+    var course = courses.filter(function (item) { return item.codeValues.indexOf(code) >= 0 })[0] || null
+    if (!course) return
+    var term = asText(record.sourceTerm || record.sourceSemester, "来源学期待补充")
+    teacherNames(record.teachers || record.teacher).forEach(function (teacherName, teacherIndex) {
+      rows.push({
+        key: code + "::course::" + index + "::" + teacherIndex,
+        courseKey: course.key,
+        matchMethod: "课程号",
+        resolvedMatchMethod: "code",
+        courseCode: code,
+        courseName: course.name,
+        major: "",
+        term: sourceTermLabel(term),
+        sourceTerm: term,
+        sourceTermLabel: sourceTermLabel(term),
+        latestTermRank: sourceTermRank(term),
+        teacher: teacherName,
+        offeringUnit: asText(record.offeringUnit || record.offering_unit, "开课院系待补充"),
+        textbook: textbookText(record),
+        publisher: asText(record.publisher, ""),
+        editor: asText(record.editor || record.author, ""),
+        source: asText(record.source || record.sourceLabel, "开课与教材匹配材料"),
+        scope: "course"
+      })
+    })
+  })
+  return rows
+}
+
 function getTeacherOfferingGroupsForCourse(course) {
   var groups = {}
   var order = []
-  getOfferingsForCourse(course).forEach(function (offering) {
+  getTeachingRows().filter(function (offering) { return offering.courseKey === course.key }).forEach(function (offering) {
     var variant = course.variants.filter(function (item) {
       return item.major === offering.major && item.code === offering.courseCode
     })[0] || course.variants.filter(function (item) {
@@ -414,7 +483,7 @@ function getTeacherOfferingGroupsForCourse(course) {
         order.push(groups[groupKey])
       }
       var group = groups[groupKey]
-      group.displayMajors.push(displayMajorForVariant(variant))
+      if (offering.scope !== "course") group.displayMajors.push(displayMajorForVariant(variant))
       group.codes.push(offering.courseCode)
       group.sourceTerms.push(offering.sourceTerm)
       group.textbooks.push(offering.textbook)
@@ -425,15 +494,18 @@ function getTeacherOfferingGroupsForCourse(course) {
   return order.map(function (group) {
     group.displayMajors = distinct(group.displayMajors)
     group.codes = distinct(group.codes)
-    group.sourceTerms = distinct(group.sourceTerms)
+    group.sourceTerms = sortedSourceTerms(group.sourceTerms)
     group.textbooks = distinct(group.textbooks)
     group.offeringUnits = distinct(group.offeringUnits)
     group.displayMajorsLabel = group.displayMajors.join("、")
     group.codesLabel = group.codes.join("、")
-    group.sourceTermsLabel = group.sourceTerms.join("、")
+    group.sourceTermsLabel = group.sourceTerms.map(sourceTermLabel).join("、")
+    group.latestTermRank = Math.max.apply(null, group.sourceTerms.map(sourceTermRank))
     group.textbooksLabel = group.textbooks.join("；")
     group.offeringUnitsLabel = group.offeringUnits.join("、")
     return group
+  }).sort(function (left, right) {
+    return right.latestTermRank - left.latestTermRank || left.teacher.localeCompare(right.teacher, "zh-CN")
   })
 }
 
@@ -483,9 +555,15 @@ function getTeacherByName(name) {
   })[0] || null
 }
 
+function getTeacherByDirectoryId(directoryId) {
+  return getTeachers().filter(function (teacher) {
+    return teacher.directoryId === directoryId
+  })[0] || null
+}
+
 function getTeachingRows() {
-  return getOfferings().sort(function (left, right) {
-    return left.courseName.localeCompare(right.courseName, "zh-CN")
+  return getOfferings().concat(getCourseLevelTeachingRows()).sort(function (left, right) {
+    return left.courseName.localeCompare(right.courseName, "zh-CN") || right.latestTermRank - left.latestTermRank
   })
 }
 
@@ -498,7 +576,7 @@ function getTeacherTeachingGroups() {
       return item.major === offering.major && item.code === offering.courseCode
     })[0] || null
     var courseKey = offering.courseKey || stableCourseKey(offering.courseName, offering.courseCode)
-    var displayMajor = variant ? displayMajorForVariant(variant) : offering.major
+    var displayMajor = offering.scope === "course" ? "" : (variant ? displayMajorForVariant(variant) : offering.major)
     teacherNames(offering.teacher).forEach(function (teacherName) {
       if (!groups[teacherName]) {
         groups[teacherName] = {
@@ -526,8 +604,8 @@ function getTeacherTeachingGroups() {
         }
         group.courses.push(courseItem)
       }
-      courseItem.majors.push(offering.major)
-      courseItem.displayMajors.push(displayMajor)
+      if (offering.major) courseItem.majors.push(offering.major)
+      if (displayMajor) courseItem.displayMajors.push(displayMajor)
       courseItem.courseCodes.push(offering.courseCode)
       courseItem.textbooks.push(offering.textbook)
       courseItem.offeringUnits.push(offering.offeringUnit)
@@ -542,13 +620,14 @@ function getTeacherTeachingGroups() {
       course.courseCodes = distinct(course.courseCodes)
       course.textbooks = distinct(course.textbooks)
       course.offeringUnits = distinct(course.offeringUnits)
-      course.sourceTerms = distinct(course.sourceTerms)
+      course.sourceTerms = sortedSourceTerms(course.sourceTerms)
       course.majorLabel = course.majors.join("、")
       course.displayMajorLabel = course.displayMajors.join("、")
       course.courseCodeLabel = course.courseCodes.join("、")
       course.textbookLabel = course.textbooks.join("；")
       course.offeringUnitLabel = course.offeringUnits.join("、")
-      course.sourceTermLabel = course.sourceTerms.join("、")
+      course.sourceTermLabel = course.sourceTerms.map(sourceTermLabel).join("、")
+      course.latestTermRank = Math.max.apply(null, course.sourceTerms.map(sourceTermRank))
     })
     group.courses.sort(function (left, right) {
       return left.name.localeCompare(right.name, "zh-CN")
@@ -573,6 +652,7 @@ module.exports = {
   getTeachers: getTeachers,
   getTeacherById: getTeacherById,
   getTeacherByName: getTeacherByName,
+  getTeacherByDirectoryId: getTeacherByDirectoryId,
   teacherDirectoryId: teacherDirectoryId,
   getTeachingRows: getTeachingRows,
   getTeacherTeachingGroups: getTeacherTeachingGroups

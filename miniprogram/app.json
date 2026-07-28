@@ -3,6 +3,7 @@
     "pages/catalog/index",
     "pages/course-detail/index",
     "pages/teaching/index",
+    "pages/teacher-detail/index",
     "pages/ai/index",
     "pages/profile/index"
   ],

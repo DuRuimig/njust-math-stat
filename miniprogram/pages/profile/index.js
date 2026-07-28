@@ -48,7 +48,10 @@ Page({
     adminStatusChangingUserId: "",
     adminRoleChangingUserId: "",
     primaryTransferUserId: "",
-    currentUserId: ""
+    currentUserId: "",
+    isAdminContactExpanded: false,
+    isAdminQrOpen: false,
+    adminQrImageError: false
   },
 
   onShow: function () {
@@ -448,6 +451,28 @@ Page({
         })
       }
     })
+  },
+
+  toggleAdminContact: function () {
+    var isExpanded = !this.data.isAdminContactExpanded
+    this.setData({
+      isAdminContactExpanded: isExpanded,
+      isAdminQrOpen: isExpanded ? this.data.isAdminQrOpen : false
+    })
+  },
+
+  openAdminQr: function () {
+    this.setData({ isAdminQrOpen: true, adminQrImageError: false })
+  },
+
+  keepAdminQrOpen: function () {},
+
+  onAdminQrImageError: function () {
+    this.setData({ adminQrImageError: true })
+  },
+
+  closeAdminQr: function () {
+    this.setData({ isAdminQrOpen: false })
   },
 
   bindProfile: function () {

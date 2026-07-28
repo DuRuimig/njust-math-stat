@@ -1,7 +1,9 @@
+const path = require('node:path');
 const apiModulePath = require.resolve('../../../miniprogram/utils/api');
 const profilePagePath = require.resolve('../../../miniprogram/pages/profile/index');
 const courseDetailPagePath = require.resolve('../../../miniprogram/pages/course-detail/index');
 const teachingPagePath = require.resolve('../../../miniprogram/pages/teaching/index');
+const teacherDetailPagePath = path.resolve(__dirname, '../../../miniprogram/pages/teacher-detail/index.js');
 
 const originalWx = global.wx;
 const originalGetApp = global.getApp;
@@ -86,6 +88,14 @@ function loadTeachingPage() {
   return definition;
 }
 
+function loadTeacherDetailPage() {
+  let definition;
+  global.Page = (pageDefinition) => { definition = pageDefinition; };
+  delete require.cache[teacherDetailPagePath];
+  require(teacherDetailPagePath);
+  return definition;
+}
+
 function createPage(definition) {
   const page = {
     data: { ...definition.data },
@@ -109,6 +119,12 @@ function teacherSummaryItems(request, options = {}) {
   }));
 }
 
+function succeedTeacherSummary(requests, options = {}) {
+  requests.forEach((request) => {
+    request.success({ statusCode: 200, data: { items: teacherSummaryItems(request, options) } });
+  });
+}
+
 afterEach(() => {
   global.wx = originalWx;
   global.getApp = originalGetApp;
@@ -117,6 +133,7 @@ afterEach(() => {
   delete require.cache[profilePagePath];
   delete require.cache[courseDetailPagePath];
   delete require.cache[teachingPagePath];
+  delete require.cache[teacherDetailPagePath];
 });
 
 describe('小程序会话与资料请求边界', () => {
@@ -152,6 +169,46 @@ describe('小程序会话与资料请求边界', () => {
 
     expect(runtime.requests).toHaveLength(1);
     expect(runtime.requests[0].data).toEqual({ nickname: '新昵称' });
+  });
+
+  it('教师目录摘要按 20 个标识分批请求并合并完整结果', async () => {
+    const runtime = installCloudRuntime((options) => {
+      options.success({
+        statusCode: 200,
+        data: { items: teacherSummaryItems(options, { likeCount: 2, likedByMe: true }) },
+      });
+    });
+    const api = loadApi();
+    const teacherIds = Array.from({ length: 44 }, (_, index) => `directory:${index.toString(16).padStart(64, '0')}`);
+
+    await expect(api.getTeacherFeedbackSummary(teacherIds)).resolves.toMatchObject({
+      items: teacherIds.map((teacherId) => ({ teacherId, likeCount: 2, likedByMe: true })),
+    });
+
+    expect(runtime.requests).toHaveLength(3);
+    expect(runtime.requests.map((request) => teacherSummaryItems(request).length)).toEqual([20, 20, 4]);
+    expect(runtime.requests.every((request) => request.path.length < 1700)).toBe(true);
+  });
+
+  it('教师摘要为尚未入库的新教师补零而不拖垮整个目录', async () => {
+    const teacherIds = [
+      `directory:${'a'.repeat(64)}`,
+      `directory:${'b'.repeat(64)}`,
+    ];
+    installCloudRuntime((options) => {
+      options.success({
+        statusCode: 200,
+        data: { items: [{ teacherId: teacherIds[0], likeCount: 3, likedByMe: true }] },
+      });
+    });
+    const api = loadApi();
+
+    await expect(api.getTeacherFeedbackSummary(teacherIds)).resolves.toEqual({
+      items: [
+        { teacherId: teacherIds[0], likeCount: 3, likedByMe: true },
+        { teacherId: teacherIds[1], likeCount: 0, likedByMe: false },
+      ],
+    });
   });
 
   it.each(['SESSION_INVALID', 'AUTH_REQUIRED'])('显式 %s 响应清除本地会话', async (serverCode) => {
@@ -696,15 +753,15 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    expect(pending).toHaveLength(1);
+    expect(pending).toHaveLength(3);
     api.persistSession({ token: 'new-session', mode: 'wechat', expiresInSeconds: 60 });
     pending[0].success({ statusCode: 401, data: { error: { code: 'SESSION_INVALID', message: '旧会话已失效' } } });
     await flushPromises();
     await flushPromises();
 
-    expect(pending).toHaveLength(2);
-    expect(pending[1].header.Authorization).toBe('Bearer new-session');
-    pending[1].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[1], { likeCount: 6, likedByMe: true }) } });
+    expect(pending).toHaveLength(6);
+    expect(pending[3].header.Authorization).toBe('Bearer new-session');
+    succeedTeacherSummary(pending.slice(3, 6), { likeCount: 6, likedByMe: true });
     await flushPromises();
     await flushPromises();
 
@@ -721,17 +778,17 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    pending[0].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[0], { likeCount: 2 }) } });
+    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 2 });
     await flushPromises();
     const teacher = page.data.teachers[0];
     page.likeTeacher({ currentTarget: { dataset: { id: teacher.id } } });
     api.persistSession({ token: 'new-session', mode: 'wechat', expiresInSeconds: 60 });
-    pending[1].success({ statusCode: 401, data: { error: { code: 'SESSION_INVALID', message: '旧会话已失效' } } });
+    pending[3].success({ statusCode: 401, data: { error: { code: 'SESSION_INVALID', message: '旧会话已失效' } } });
     await flushPromises();
     await flushPromises();
 
-    expect(pending).toHaveLength(3);
-    expect(pending[2].header.Authorization).toBe('Bearer new-session');
+    expect(pending).toHaveLength(7);
+    expect(pending[4].header.Authorization).toBe('Bearer new-session');
     expect(runtime.toasts.some((toast) => toast.title === '登录已失效，请重新登录')).toBe(false);
   });
 
@@ -743,19 +800,19 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    expect(pending).toHaveLength(1);
-    pending[0].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[0], { likeCount: 7 }) } });
+    expect(pending).toHaveLength(3);
+    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 7 });
     await flushPromises();
 
     const teacher = page.data.teachers[0];
     page.likeTeacher({ currentTarget: { dataset: { id: teacher.id } } });
     page.loadTeacherFeedbackSummary();
-    expect(pending).toHaveLength(3);
+    expect(pending).toHaveLength(7);
 
-    pending[2].success({ statusCode: 401, data: { error: { code: serverCode, message: '会话已失效' } } });
+    pending[4].success({ statusCode: 401, data: { error: { code: serverCode, message: '会话已失效' } } });
     await flushPromises();
     await flushPromises();
-    pending[1].success({ statusCode: 201, data: { liked: true, likeCount: 8 } });
+    pending[3].success({ statusCode: 201, data: { liked: true, likeCount: 8 } });
     await flushPromises();
     await flushPromises();
 
@@ -778,12 +835,12 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    pending[0].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[0], { likeCount: 3 }) } });
+    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 3 });
     await flushPromises();
 
     const teacher = page.data.teachers[0];
     page.likeTeacher({ currentTarget: { dataset: { id: teacher.id } } });
-    rejectLike(pending[1]);
+    rejectLike(pending[3]);
     await flushPromises();
     await flushPromises();
 
@@ -803,12 +860,12 @@ describe('教师目录页会话状态', () => {
 
     page.onLoad();
     page.onShow();
-    pending[0].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[0], { likeCount: 4 }) } });
+    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 4 });
     await flushPromises();
 
     const teacher = page.data.teachers[0];
     page.likeTeacher({ currentTarget: { dataset: { id: teacher.id } } });
-    pending[1].success({ statusCode: 201, data: { liked: true, likeCount: 5 } });
+    pending[3].success({ statusCode: 201, data: { liked: true, likeCount: 5 } });
     await flushPromises();
     await flushPromises();
 
@@ -826,11 +883,11 @@ describe('教师目录页会话状态', () => {
     page.onShow();
     runtime.setStoredSession({ token: 'new-session', mode: 'wechat', expiresAt: Date.now() + 60_000 });
     page.onShow();
-    expect(pending).toHaveLength(2);
+    expect(pending).toHaveLength(6);
 
-    pending[1].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[1], { likeCount: 2, likedByMe: true }) } });
+    succeedTeacherSummary(pending.slice(3, 6), { likeCount: 2, likedByMe: true });
     await flushPromises();
-    pending[0].success({ statusCode: 200, data: { items: teacherSummaryItems(pending[0], { likeCount: 9 }) } });
+    succeedTeacherSummary(pending.slice(0, 3), { likeCount: 9 });
     await flushPromises();
     await flushPromises();
 
@@ -1034,6 +1091,31 @@ describe('课程详情会话失效状态', () => {
     expect(page.data.directoryTeachers).toEqual([{ directoryId: 'teacher-a', hasLiked: false, isLiking: false }]);
   });
 
+  it('课程登录失效后立即匿名重拉公开评论', async () => {
+    const pending = [];
+    installCloudRuntime((options) => { pending.push(options); });
+    loadApi();
+    const page = createPage(loadCourseDetailPage());
+    page.setData({
+      course: { code: '10000001', name: '测试课程' },
+      directoryTeachers: [],
+      isLoggedIn: true,
+    });
+
+    page.loadFeedback('10000001:测试课程');
+    pending[0].success({ statusCode: 401, data: { error: { code: 'SESSION_INVALID', message: '会话已失效' } } });
+    await flushPromises();
+    await flushPromises();
+
+    expect(pending).toHaveLength(2);
+    expect(pending[1].header.Authorization).toBeUndefined();
+    pending[1].success({ statusCode: 200, data: { likedByMe: false, likeCount: 2, comments: [{ id: 'public-comment', content: '公开评论', authorNickname: '同学甲', createdAt: '2026-07-28T04:03:00.000Z' }] } });
+    await flushPromises();
+
+    expect(page.data).toMatchObject({ isLoggedIn: false, feedbackConnected: true, likeCount: 2 });
+    expect(page.data.comments[0]).toMatchObject({ content: '公开评论', authorNickname: '同学甲' });
+  });
+
   it('网络错误不会退出课程详情的可写状态', () => {
     const page = createPage(loadCourseDetailPage());
     page.setData({ isLoggedIn: true, hasLiked: true, feedbackConnected: true });
@@ -1197,5 +1279,173 @@ describe('课程详情会话失效状态', () => {
       comments: [{ content: '已有评论', createdAt: '2026-07-27T00:00:00Z' }],
     });
     expect(runtime.toasts.some((toast) => toast.icon === 'success')).toBe(false);
+  });
+});
+
+describe('教师详情与新版课程互动', () => {
+  it('数据库 UTC 时间字符串与带 Z 的 ISO 时间表示同一时刻', () => {
+    const feedback = require('../../../miniprogram/utils/feedback');
+
+    expect(feedback.parseCommentTime('2026-07-28 04:03:00').getTime()).toBe(
+      Date.parse('2026-07-28T04:03:00.000Z'),
+    );
+    expect(feedback.formatCommentTime('2026-07-28 04:03:00')).toBe(
+      feedback.formatCommentTime('2026-07-28T04:03:00.000Z'),
+    );
+  });
+
+  it('教师目录卡片进入详情，点赞仍由独立处理器负责', () => {
+    installCloudRuntime(() => {});
+    global.wx.navigateTo = vi.fn();
+    const page = createPage(loadTeachingPage());
+    const teacher = require('../../../miniprogram/utils/library').getTeachers()[0];
+
+    page.openTeacher({ currentTarget: { dataset: { id: teacher.directoryId } } });
+
+    expect(global.wx.navigateTo).toHaveBeenCalledWith({
+      url: `/pages/teacher-detail/index?id=${encodeURIComponent(teacher.directoryId)}`,
+    });
+  });
+
+  it('教师详情首次显示不重复请求，返回页面后刷新反馈', async () => {
+    const pending = [];
+    installCloudRuntime((options) => { pending.push(options); });
+    global.wx.setNavigationBarTitle = () => {};
+    loadApi();
+    const teacher = require('../../../miniprogram/utils/library').getTeachers()[0];
+    const page = createPage(loadTeacherDetailPage());
+
+    page.onLoad({ id: encodeURIComponent(teacher.directoryId) });
+    expect(pending).toHaveLength(0);
+    page.onShow();
+    expect(pending).toHaveLength(1);
+    pending[0].success({ statusCode: 200, data: { likedByMe: false, likeCount: 1, comments: [] } });
+    await flushPromises();
+
+    page.onShow();
+    expect(pending).toHaveLength(2);
+    pending[1].success({ statusCode: 200, data: { likedByMe: true, likeCount: 2, comments: [] } });
+    await flushPromises();
+
+    expect(page.data).toMatchObject({ feedbackConnected: true, hasLiked: true, likeCount: 2 });
+  });
+
+  it('教师登录失效后立即匿名重拉公开评价', async () => {
+    const pending = [];
+    installCloudRuntime((options) => { pending.push(options); });
+    global.wx.setNavigationBarTitle = () => {};
+    loadApi();
+    const teacher = require('../../../miniprogram/utils/library').getTeachers()[0];
+    const page = createPage(loadTeacherDetailPage());
+
+    page.onLoad({ id: encodeURIComponent(teacher.directoryId) });
+    page.onShow();
+    pending[0].success({ statusCode: 401, data: { error: { code: 'SESSION_INVALID', message: '会话已失效' } } });
+    await flushPromises();
+    await flushPromises();
+
+    expect(pending).toHaveLength(2);
+    expect(pending[1].header.Authorization).toBeUndefined();
+    pending[1].success({ statusCode: 200, data: { likedByMe: false, likeCount: 4, comments: [{ id: 'public-teacher-comment', content: '公开评价', authorNickname: '同学乙', createdAt: '2026-07-28T04:03:00.000Z' }] } });
+    await flushPromises();
+
+    expect(page.data).toMatchObject({ isLoggedIn: false, feedbackConnected: true, likeCount: 4 });
+    expect(page.data.comments[0]).toMatchObject({ content: '公开评价', authorNickname: '同学乙' });
+  });
+
+  it('课程未点赞时可直接评论，并保存昵称和本地时间文本', async () => {
+    const pending = [];
+    installCloudRuntime((options) => { pending.push(options); });
+    loadApi();
+    const page = createPage(loadCourseDetailPage());
+    page.setData({
+      course: { code: '10000001', name: '测试课程' },
+      isLoggedIn: true,
+      hasLiked: false,
+      commentText: '无需点赞也能评论',
+      comments: [],
+    });
+
+    page.submitComment();
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({ method: 'POST', data: { content: '无需点赞也能评论' } });
+    pending[0].success({
+      statusCode: 201,
+      data: { comment: { id: 'comment-1', content: '无需点赞也能评论', authorNickname: '课程同学', createdAt: '2026-07-28T04:03:00.000Z', canDelete: true } },
+    });
+    await flushPromises();
+
+    expect(page.data.comments[0]).toMatchObject({
+      authorNickname: '课程同学',
+      createdAtLabel: expect.stringMatching(/^2026年7月28日 \d{2}:\d{2}$/),
+    });
+  });
+
+  it('课程详情保留往期教师并只显示简短学期文字', async () => {
+    installCloudRuntime((options) => options.fail({ errMsg: 'offline' }));
+    global.wx.setNavigationBarTitle = () => {};
+    const page = createPage(loadCourseDetailPage());
+    const course = require('../../../miniprogram/utils/library').getCourses().find((item) => item.codeValues.includes('71100201'));
+
+    page.onLoad({ key: encodeURIComponent(course.key) });
+    await flushPromises();
+
+    expect(page.data.course.textbookLabel).toBe('高等代数（第六版） · 高等教育出版社');
+    expect(page.data.directoryTeachers.map((teacher) => ({ name: teacher.name, terms: teacher.sourceTermsLabel }))).toEqual(expect.arrayContaining([
+      { name: '吕新民', terms: '2025年秋' },
+      { name: '冯敏', terms: '2026年秋' },
+    ]));
+  });
+
+  it('教师详情点赞前拒绝评论，点赞后可以发布', async () => {
+    const pending = [];
+    const runtime = installCloudRuntime((options) => { pending.push(options); });
+    global.wx.setNavigationBarTitle = () => {};
+    const teacher = require('../../../miniprogram/utils/library').getTeacherByName('冯敏');
+    const page = createPage(loadTeacherDetailPage());
+
+    page.onLoad({ id: encodeURIComponent(teacher.directoryId) });
+    page.onShow();
+    expect(pending).toHaveLength(1);
+    pending[0].success({ statusCode: 200, data: { likeCount: 0, likedByMe: false, comments: [] } });
+    await flushPromises();
+
+    page.onCommentInput({ detail: { value: '教师评价' } });
+    page.submitComment();
+    expect(runtime.toasts.at(-1).title).toBe('点赞后可评价教师');
+    expect(pending).toHaveLength(1);
+
+    page.likeTeacher();
+    expect(pending[1].method).toBe('POST');
+    pending[1].success({ statusCode: 201, data: { liked: true, likeCount: 1 } });
+    await flushPromises();
+    page.submitComment();
+    expect(pending[2]).toMatchObject({ method: 'POST', data: { content: '教师评价' } });
+    pending[2].success({ statusCode: 201, data: { comment: { id: 'teacher-comment', content: '教师评价', authorNickname: '课程同学', createdAt: '2026-07-28T04:03:00.000Z', canDelete: true } } });
+    await flushPromises();
+
+    expect(page.data).toMatchObject({ hasLiked: true, likeCount: 1, isSubmittingComment: false, commentText: '' });
+    expect(page.data.comments[0]).toMatchObject({ content: '教师评价', authorNickname: '课程同学' });
+  });
+});
+
+describe('个人页管理员联系方式', () => {
+  it('先展开联系按钮，再打开和关闭二维码弹窗', () => {
+    installCloudRuntime(() => {});
+    const page = createPage(loadProfilePage());
+
+    expect(page.data).toMatchObject({ isAdminContactExpanded: false, isAdminQrOpen: false, adminQrImageError: false });
+    page.toggleAdminContact();
+    expect(page.data.isAdminContactExpanded).toBe(true);
+    page.openAdminQr();
+    expect(page.data.isAdminQrOpen).toBe(true);
+    page.keepAdminQrOpen();
+    expect(page.data.isAdminQrOpen).toBe(true);
+    page.onAdminQrImageError();
+    expect(page.data.adminQrImageError).toBe(true);
+    page.closeAdminQr();
+    expect(page.data.isAdminQrOpen).toBe(false);
+    page.toggleAdminContact();
+    expect(page.data.isAdminContactExpanded).toBe(false);
   });
 });

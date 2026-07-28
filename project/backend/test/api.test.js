@@ -87,6 +87,7 @@ function forcedSqliteUniqueConflictDatabase() {
 function expectAnonymous(comment) {
   expect(comment).toMatchObject({ anonymous: true });
   expect(comment.id).toMatch(/^[0-9a-f-]{36}$/i);
+  expect(comment.authorNickname).toEqual(expect.any(String));
   for (const key of forbiddenIdentityKeys) expect(comment).not.toHaveProperty(key);
 }
 
@@ -101,10 +102,10 @@ describe('v1 API 契约', () => {
     expect(response.body.error.code).toBe('NOT_FOUND');
   });
 
-  it('43 个教师目录稳定键与 seed 口径一致', () => {
-    expect(courseLibrary.teachers).toHaveLength(43);
+  it('44 个教师目录稳定键与 seed 口径一致', () => {
+    expect(courseLibrary.teachers).toHaveLength(44);
     const directoryKeys = courseLibrary.teachers.map(teacherDirectoryKey);
-    expect(new Set(directoryKeys).size).toBe(43);
+    expect(new Set(directoryKeys).size).toBe(44);
     expect(directoryKeys.every((key) => /^directory:[a-f0-9]{64}$/.test(key))).toBe(true);
   });
 
@@ -376,10 +377,13 @@ describe('v1 API 契约', () => {
     }
   });
 
-  it('课程支持点赞、幂等取消、重新点赞，取消后保留旧评论并拒绝新评论', async () => {
+  it('课程评论不要求点赞并实时显示当前昵称，课程点赞仍可独立切换', async () => {
     const token = await session('student-c');
     expect((await request(app).delete(coursePath('likes'))).status).toBe(401);
-    expect((await request(app).post(coursePath('comments')).set(auth(token)).send({ content: '未点赞评论' })).status).toBe(403);
+    const beforeLike = await request(app).post(coursePath('comments')).set(auth(token)).send({ content: '未点赞评论' });
+    expect(beforeLike.status).toBe(201);
+    expect(beforeLike.body.comment).toMatchObject({ content: '未点赞评论', authorNickname: '新同学' });
+    expectAnonymous(beforeLike.body.comment);
     const firstLike = await request(app).post(coursePath('likes')).set(auth(token));
     expect(firstLike.status).toBe(201);
     expect(firstLike.body).toMatchObject({ liked: true, alreadyLiked: false, likeCount: 1 });
@@ -401,16 +405,23 @@ describe('v1 API 契约', () => {
     const repeatedCancel = await request(app).delete(coursePath('likes')).set(auth(token));
     expect(repeatedCancel.status).toBe(200);
     expect(repeatedCancel.body).toEqual({ liked: false, likeCount: 0 });
-    const rejectedComment = await request(app).post(coursePath('comments')).set(auth(token)).send({ content: '取消后的新评论' });
-    expect(rejectedComment.status).toBe(403);
-    expect(rejectedComment.body.error.code).toBe('LIKE_REQUIRED');
+    const afterCancel = await request(app).post(coursePath('comments')).set(auth(token)).send({ content: '取消后的新评论' });
+    expect(afterCancel.status).toBe(201);
+    expect(afterCancel.body.comment).toMatchObject({ content: '取消后的新评论', authorNickname: '新同学' });
+
+    expect((await request(app).patch(`${v1}/profile`).set(auth(token)).send({ nickname: '课程同学' })).status).toBe(200);
 
     const cancelledFeedback = await request(app).get(coursePath('feedback')).set(auth(token));
     expect(cancelledFeedback.status).toBe(200);
     expect(cancelledFeedback.body).toMatchObject({ likeCount: 0, likedByMe: false });
-    expect(cancelledFeedback.body.comments).toHaveLength(1);
-    expect(cancelledFeedback.body.comments[0].content).toHaveLength(300);
-    expectAnonymous(cancelledFeedback.body.comments[0]);
+    expect(cancelledFeedback.body.comments).toHaveLength(3);
+    expect(cancelledFeedback.body.comments.every((comment) => comment.authorNickname === '课程同学')).toBe(true);
+    cancelledFeedback.body.comments.forEach(expectAnonymous);
+
+    const publicFeedback = await request(app).get(coursePath('feedback'));
+    expect(publicFeedback.status).toBe(200);
+    expect(publicFeedback.body.comments).toHaveLength(3);
+    expect(publicFeedback.body.comments.every((comment) => !comment.canDelete && !comment.canModerate)).toBe(true);
 
     const reliked = await request(app).post(coursePath('likes')).set(auth(token));
     expect(reliked.status).toBe(201);
@@ -591,9 +602,17 @@ describe('v1 API 契约', () => {
     }
     expect((await request(app).get(`${v1}/teachers/feedback-summary`)).body).toEqual({ items: [{ teacherId, likeCount: 0 }] });
 
+    const beforeLikeComment = await request(app).post(teacherPath('comments')).set(auth(token)).send({ content: '教师未点赞评论' });
+    expect(beforeLikeComment.status).toBe(403);
+    expect(beforeLikeComment.body.error.code).toBe('LIKE_REQUIRED');
+
     const firstLike = await request(app).post(teacherPath('likes')).set(auth(token));
     expect(firstLike.status).toBe(201);
     expect(firstLike.body).toMatchObject({ liked: true, alreadyLiked: false, likeCount: 1 });
+    const teacherComment = await request(app).post(teacherPath('comments')).set(auth(token)).send({ content: '教师评价' });
+    expect(teacherComment.status).toBe(201);
+    expect(teacherComment.body.comment).toMatchObject({ content: '教师评价', authorNickname: '新同学' });
+    expectAnonymous(teacherComment.body.comment);
     expect((await request(app).get(summaryPath).set(auth(token))).body).toEqual({ items: [{ teacherId, likeCount: 1, likedByMe: true }] });
 
     expect((await request(app).delete(teacherPath('likes'))).status).toBe(401);

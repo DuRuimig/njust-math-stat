@@ -67,6 +67,8 @@
   padding: 18rpx;
 }
 
+.directory-card:active { background: #f8f9fd; }
+
 .directory-mark {
   flex: 0 0 76rpx;
   display: flex;
@@ -97,6 +99,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.teacher-term { display: block; margin-top: 4rpx; color: var(--indigo); font-size: 21rpx; line-height: 1.45; }
 
 .teacher-like-control { margin-left: auto; }
 

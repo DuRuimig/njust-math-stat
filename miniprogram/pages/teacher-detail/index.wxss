@@ -1,0 +1,49 @@
+.teacher-heading { display: flex; align-items: center; gap: 20rpx; }
+.teacher-mark { display: flex; flex: 0 0 96rpx; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; border-radius: 14rpx; background: var(--indigo-soft); color: var(--indigo); font-size: 27rpx; font-weight: 700; overflow: hidden; }
+.teacher-heading-copy { flex: 1; min-width: 0; }
+.teacher-heading-copy .page-title { display: block; font-size: 42rpx; word-break: break-word; }
+.teacher-heading-copy .page-lead { display: block; margin-top: 4rpx; }
+.teacher-summary { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin-top: 26rpx; padding: 20rpx 22rpx; }
+.teacher-summary-copy { min-width: 0; }
+.summary-label { display: block; color: var(--muted); font-size: 21rpx; font-weight: 600; }
+.summary-value { display: block; margin-top: 5rpx; color: var(--ink); font-size: 27rpx; font-weight: 700; }
+.like-control { display: inline-flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; min-width: 88rpx; min-height: 88rpx; padding: 8rpx 14rpx; box-sizing: border-box; border: 1rpx solid #d8dee9; border-radius: 10rpx; background: #fff; color: #707b8e; font-size: 22rpx; font-weight: 700; line-height: 1.15; text-align: center; }
+.like-control:active { background: #f6f7fb; }
+.like-control[disabled] { opacity: .72; }
+.like-control.liked { border-color: #f1c7d2; color: #df5e7e; }
+.like-control.liked:active { background: #fff5f7; }
+.like-count { display: block; min-width: 18rpx; }
+.like-heart { position: relative; display: block; width: 34rpx; height: 31rpx; }
+.like-heart-shape::before, .like-heart-shape::after, .like-heart-cutout::before, .like-heart-cutout::after { position: absolute; display: block; content: ""; }
+.like-heart-filled, .like-heart-outline { background: #a8b1c0; }
+.like-heart-filled { background: #ec6d8a; }
+.like-heart-shape { position: absolute; left: 8rpx; top: 11rpx; width: 16rpx; height: 16rpx; border-radius: 3rpx 0 3rpx 0; transform: rotate(-45deg); }
+.like-heart-filled::before, .like-heart-outline::before { left: 0; top: -8rpx; width: 16rpx; height: 16rpx; border-radius: 50%; background: inherit; }
+.like-heart-filled::after, .like-heart-outline::after { left: 8rpx; top: 0; width: 16rpx; height: 16rpx; border-radius: 50%; background: inherit; }
+.like-heart-cutout { position: absolute; left: 3rpx; top: 3rpx; width: 10rpx; height: 10rpx; border-radius: 2rpx 0 2rpx 0; background: #fff; }
+.like-heart-cutout::before { left: 0; top: -5rpx; width: 10rpx; height: 10rpx; border-radius: 50%; background: #fff; }
+.like-heart-cutout::after { left: 5rpx; top: 0; width: 10rpx; height: 10rpx; border-radius: 50%; background: #fff; }
+.course-list { overflow: hidden; }
+.course-row { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; min-height: 92rpx; padding: 16rpx 20rpx; box-sizing: border-box; border-bottom: 1rpx solid var(--line); }
+.course-row:last-child { border-bottom: 0; }
+.course-row:active { background: #f8f9fd; }
+.course-copy { flex: 1; min-width: 0; }
+.course-name { display: block; color: var(--ink); font-size: 26rpx; font-weight: 700; line-height: 1.45; }
+.course-meta { display: block; margin-top: 4rpx; color: var(--muted); font-size: 21rpx; line-height: 1.45; }
+.course-term { flex: 0 0 auto; max-width: 42%; color: var(--indigo); font-size: 21rpx; line-height: 1.45; text-align: right; }
+.compact-empty { padding: 34rpx 24rpx; }
+.feedback-card { padding: 20rpx 22rpx; }
+.feedback-card .field-textarea { min-height: 90rpx; padding-top: 14rpx; padding-bottom: 14rpx; }
+.comment-action { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 8rpx; color: var(--muted); font-size: 21rpx; }
+.comment-submit { min-height: 64rpx; padding: 0 18rpx; font-size: 24rpx; }
+.comment-submit[disabled] { background: #aeb8d1; box-shadow: none; }
+.comment-list { display: flex; flex-direction: column; gap: 14rpx; margin-top: 24rpx; }
+.comment-item { padding-top: 16rpx; border-top: 1rpx solid var(--line); }
+.comment-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 18rpx; color: var(--muted); font-size: 21rpx; }
+.comment-meta > text:first-child { min-width: 0; color: var(--indigo); font-weight: 700; word-break: break-word; }
+.comment-meta-actions { display: flex; flex: 0 1 auto; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10rpx; text-align: right; }
+.comment-delete { min-width: 0; margin: 0; padding: 0 8rpx; border: 0; background: transparent; color: #b44b3b; font-size: 22rpx; line-height: 1.5; }
+.comment-content { display: block; margin-top: 8rpx; color: var(--ink); font-size: 25rpx; line-height: 1.6; word-break: break-word; }
+.comment-empty { margin-top: 22rpx; padding-top: 18rpx; border-top: 1rpx solid var(--line); color: var(--muted); font-size: 23rpx; }
+.missing-teacher { margin-top: 90rpx; }
+.back-button { width: 100%; margin-top: 24rpx; }

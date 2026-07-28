@@ -9,12 +9,12 @@
   <view wx:if="{{feedbackStatus}}" class="feedback-status" role="alert"><text>{{feedbackStatus}}</text></view>
 
   <view wx:if="{{teacherCount}}" class="teacher-list">
-    <view wx:for="{{teachers}}" wx:key="id" class="teacher-card surface">
+    <view wx:for="{{teachers}}" wx:key="id" class="teacher-card surface" data-id="{{item.directoryId}}" bindtap="openTeacher">
       <view class="teacher-copy">
         <text class="teacher-name">{{item.name}}</text>
         <text class="meta-line">{{item.department}}</text>
       </view>
-      <button class="like-control {{item.hasLiked ? 'liked' : ''}}" data-id="{{item.id}}" bindtap="likeTeacher" loading="{{item.isLiking}}" disabled="{{item.isLiking || !feedbackConnected || !isLoggedIn}}" aria-label="{{item.hasLiked ? '取消点赞，点赞数 ' + item.likeCount : '点赞，点赞数 ' + item.likeCount}}">
+      <button class="like-control {{item.hasLiked ? 'liked' : ''}}" data-id="{{item.id}}" catchtap="likeTeacher" loading="{{item.isLiking}}" disabled="{{item.isLiking || !feedbackConnected || !isLoggedIn}}" aria-label="{{item.hasLiked ? '取消点赞，点赞数 ' + item.likeCount : '点赞，点赞数 ' + item.likeCount}}">
         <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{item.hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!item.hasLiked}}" class="like-heart-cutout"></view></view></view>
         <text class="like-count">{{item.likeCount}}</text>
       </button>

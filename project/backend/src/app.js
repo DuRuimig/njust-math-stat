@@ -129,6 +129,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
         .map((item) => ({
           id: item.id,
           content: item.body,
+          authorNickname: item.author_nickname || '新同学',
           createdAt: item.created_at,
           anonymous: true,
           canDelete: Boolean(req.user && item.user_id === req.user.id),
@@ -153,11 +154,13 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     return async (req, res) => {
       const parsed = commentSchema.safeParse(req.body);
       if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '评论需为 1 至 300 个字符');
-      const liked = await repository.canComment(targetType, req.user.id, req.target.id);
-      if (!liked) return apiError(res, 403, 'LIKE_REQUIRED', '点赞后才能匿名评论');
+      if (targetType === 'teacher') {
+        const liked = await repository.canComment(targetType, req.user.id, req.target.id);
+        if (!liked) return apiError(res, 403, 'LIKE_REQUIRED', '点赞后才能评价教师');
+      }
       const id = crypto.randomUUID();
       const created = await repository.createComment(targetType, id, req.user.id, req.target.id, parsed.data.content);
-      res.status(201).json({ comment: { id: created.id, content: created.body, createdAt: created.created_at, anonymous: true, canDelete: true, canModerate: await repository.isAdmin(req.user.id) } });
+      res.status(201).json({ comment: { id: created.id, content: created.body, authorNickname: created.author_nickname || '新同学', createdAt: created.created_at, anonymous: true, canDelete: true, canModerate: await repository.isAdmin(req.user.id) } });
     };
   }
   function deleteComment(targetType) {

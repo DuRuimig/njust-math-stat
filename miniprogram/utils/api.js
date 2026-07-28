@@ -6,6 +6,7 @@ var DEV_SESSION_PATH = API_PREFIX + "/dev/sessions"
 var TEST_IDENTITY_PATH = API_PREFIX + "/auth/test-identity"
 var PROFILE_BINDING_PATH = API_PREFIX + "/profile/binding"
 var REQUEST_TIMEOUT = 8000
+var TEACHER_SUMMARY_BATCH_SIZE = 20
 var SESSION_STORAGE_KEY = "njust_math_stat_session"
 var sessionStorageBlocked = false
 var sessionRevision = 0
@@ -326,13 +327,50 @@ function getFeedback(kind, id) {
   return request({ path: targetPath(kind, id) + "/feedback" })
 }
 
-function getTeacherFeedbackSummary(ids) {
-  var teacherIds = Array.isArray(ids) ? ids : []
-  if (teacherIds.length > 100 || teacherIds.some(function (id) { return !/^directory:[a-f0-9]{64}$/.test(String(id || "")) })) {
-    return Promise.reject(apiError("教师目录标识无效", "INVALID_TARGET"))
-  }
+function requestTeacherFeedbackSummary(teacherIds) {
   var query = teacherIds.length ? "?ids=" + encodeURIComponent(teacherIds.join(",")) : ""
   return request({ path: API_PREFIX + "/teachers/feedback-summary" + query })
+}
+
+function mergeTeacherFeedbackSummaries(teacherIds, responses) {
+  var byId = {}
+  responses.forEach(function (response) {
+    var items = response && Array.isArray(response.items) ? response.items : []
+    items.forEach(function (item) {
+      if (item && teacherIds.indexOf(item.teacherId) >= 0) byId[item.teacherId] = item
+    })
+  })
+  return {
+    items: teacherIds.map(function (teacherId) {
+      return byId[teacherId] || { teacherId: teacherId, likeCount: 0, likedByMe: false }
+    })
+  }
+}
+
+function getTeacherFeedbackSummary(ids) {
+  var teacherIds = Array.isArray(ids) ? ids.map(String) : []
+  var uniqueIds = {}
+  if (teacherIds.length > 100 || teacherIds.some(function (id) {
+    if (!/^directory:[a-f0-9]{64}$/.test(id) || uniqueIds[id]) return true
+    uniqueIds[id] = true
+    return false
+  })) {
+    return Promise.reject(apiError("教师目录标识无效", "INVALID_TARGET"))
+  }
+  if (!teacherIds.length) return requestTeacherFeedbackSummary(teacherIds)
+  if (teacherIds.length <= TEACHER_SUMMARY_BATCH_SIZE) {
+    return requestTeacherFeedbackSummary(teacherIds).then(function (response) {
+      return mergeTeacherFeedbackSummaries(teacherIds, [response])
+    })
+  }
+
+  var batches = []
+  for (var index = 0; index < teacherIds.length; index += TEACHER_SUMMARY_BATCH_SIZE) {
+    batches.push(teacherIds.slice(index, index + TEACHER_SUMMARY_BATCH_SIZE))
+  }
+  return Promise.all(batches.map(requestTeacherFeedbackSummary)).then(function (responses) {
+    return mergeTeacherFeedbackSummaries(teacherIds, responses)
+  })
 }
 
 function like(kind, id) {

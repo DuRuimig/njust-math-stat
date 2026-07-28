@@ -1,5 +1,6 @@
 var library = require("../../utils/library")
 var api = require("../../utils/api")
+var feedbackView = require("../../utils/feedback")
 
 function backendCourseKey(course) {
   var name = String(course.name || "")
@@ -34,6 +35,7 @@ Page({
     this.feedbackSessionRevision = -1
     this.courseFeedbackLoading = false
     this.teacherFeedbackLoading = false
+    this.anonymousFeedbackRetrying = false
     var key = decodeURIComponent(options.key || "")
     var resolution = library.getCourseKeyResolution(key)
     var course = resolution.course
@@ -51,7 +53,11 @@ Page({
       var teacher = library.getTeacherByName(group.teacher)
       if (teacher && !used[teacher.id]) {
         used[teacher.id] = true
-        directoryTeachers.push(teacher)
+        directoryTeachers.push(Object.assign({}, teacher, {
+          sourceTerms: group.sourceTerms,
+          sourceTermsLabel: group.sourceTermsLabel,
+          latestTermRank: group.latestTermRank
+        }))
       }
     })
     this.setData({
@@ -133,21 +139,15 @@ Page({
         isLoggedIn: api.hasSession(),
         hasLiked: Boolean(feedback.likedByMe),
         likeCount: Number(feedback.likeCount) || 0,
-        comments: Array.isArray(feedback.comments) ? feedback.comments.map(function (comment) {
-          return {
-            id: comment.id || "",
-            content: comment.content || "",
-            createdAt: comment.createdAt || "",
-            canDelete: Boolean(comment.canDelete),
-            canModerate: Boolean(comment.canModerate)
-          }
-        }) : []
+        comments: Array.isArray(feedback.comments) ? feedback.comments.map(feedbackView.normalizeComment) : []
       })
+      page.anonymousFeedbackRetrying = false
       page.courseFeedbackLoading = false
     }).catch(function (error) {
       if (!page.isCurrentSessionRequest(requestEpoch)) return
       page.courseFeedbackLoading = false
       if (page.handleSessionInvalid(error)) return
+      page.anonymousFeedbackRetrying = false
       page.setData({
         feedbackConnected: false,
         isLoggedIn: api.hasSession()
@@ -162,6 +162,7 @@ Page({
   handleSessionInvalid: function (error) {
     if (!error || !error.sessionInvalid) return false
     if (error.sessionSuperseded) {
+      this.anonymousFeedbackRetrying = false
       this.sessionRequestEpoch = (this.sessionRequestEpoch || 0) + 1
       this.setData({
         feedbackConnected: false,
@@ -179,6 +180,7 @@ Page({
       this.refreshFeedback()
       return true
     }
+    var shouldRetryAnonymously = Boolean(this.data.course && !this.anonymousFeedbackRetrying)
     this.sessionRequestEpoch = (this.sessionRequestEpoch || 0) + 1
     this.setData({
       feedbackConnected: false,
@@ -193,6 +195,10 @@ Page({
         return Object.assign({}, teacher, { hasLiked: false, isLiking: false })
       })
     })
+    if (shouldRetryAnonymously) {
+      this.anonymousFeedbackRetrying = true
+      this.refreshFeedback()
+    }
     return true
   },
 
@@ -285,6 +291,12 @@ Page({
     })
   },
 
+  openTeacher: function (event) {
+    var directoryId = event.currentTarget.dataset.id
+    if (!directoryId) return
+    wx.navigateTo({ url: "/pages/teacher-detail/index?id=" + encodeURIComponent(directoryId) })
+  },
+
   onCommentInput: function (event) {
     this.setData({ commentText: String(event.detail.value || "").slice(0, 300) })
   },
@@ -299,10 +311,6 @@ Page({
       wx.showToast({ title: "请先进入测试身份", icon: "none" })
       return
     }
-    if (!this.data.hasLiked) {
-      wx.showToast({ title: "点赞后才能评论", icon: "none" })
-      return
-    }
     if (!this.data.commentText.trim()) {
       wx.showToast({ title: "请输入 1 至 300 个字符的评论", icon: "none" })
       return
@@ -314,13 +322,7 @@ Page({
       var comment = response.comment || response
       page.setData({
         feedbackConnected: true,
-        comments: comment ? [{
-          id: comment.id || "",
-          content: comment.content || "",
-          createdAt: comment.createdAt || "",
-          canDelete: Boolean(comment.canDelete),
-          canModerate: Boolean(comment.canModerate)
-        }].concat(page.data.comments) : page.data.comments,
+        comments: comment ? [feedbackView.normalizeComment(comment)].concat(page.data.comments) : page.data.comments,
         commentText: "",
         isSubmittingComment: false
       })
