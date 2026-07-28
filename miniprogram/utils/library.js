@@ -512,19 +512,19 @@ function getTeacherOfferingGroupsForCourse(course) {
 function advisorText(teacher) {
   var roles = teacher.graduateAdvisorRoles
   if (Array.isArray(roles)) {
-    return roles.length ? roles.join("；") : "研究生院导师目录未列明（不作资格否定）"
+    return roles.length ? roles.join("；") : "未标明"
   }
   var value = teacher.graduateAdvisor0701 || teacher.advisorQualifications || teacher.advisorQualification || teacher.advisorStatus
   if (Array.isArray(value)) {
-    return value.join("；") || "未收录"
+    return value.join("；") || "未标明"
   }
   if (value === "not_listed_in_0701_row") {
-    return "0701 数学目录未列出（不作资格否定）"
+    return "未标明"
   }
   if (teacher.graduateAdvisor0701) {
     return "0701 数学：" + value
   }
-  return asText(value, "未收录")
+  return asText(value, "未标明")
 }
 
 function normalizeTeacher(teacher, index) {

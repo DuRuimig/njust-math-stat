@@ -35,7 +35,7 @@ describe('课程任课历史与最新教材', () => {
     });
   });
 
-  it('保留官网明确职称，并区分导师目录未列明与否定资格', () => {
+  it('保留官网明确职称，导师资格缺少时显示未标明', () => {
     expect(library.getTeacherByName('范金华')).toMatchObject({
       department: '数学系',
       title: '教授',
@@ -43,7 +43,7 @@ describe('课程任课历史与最新教材', () => {
     });
     expect(library.getTeacherByName('冯敏')).toMatchObject({
       title: '未收录',
-      advisorQualifications: '研究生院导师目录未列明（不作资格否定）',
+      advisorQualifications: '未标明',
     });
   });
 
@@ -70,7 +70,7 @@ describe('课程任课历史与最新教材', () => {
     expect(library.getTeacherByName('张霞')).toMatchObject({
       department: '大学数学基础教学中心',
       title: '未收录',
-      advisorQualifications: '研究生院导师目录未列明（不作资格否定）',
+      advisorQualifications: '未标明',
     });
     expect(library.getTeacherByName('丁利')).toMatchObject({
       department: '未收录',
