@@ -27,7 +27,13 @@ async function main() {
     await connection.commit();
     process.stdout.write(`Seeded ${source.courses.length} course definitions and ${(source.teachers || []).length} teacher directory entries\n`);
   } catch (error) {
-    await connection.rollback();
+    // A lost MySQL connection rolls its transaction back server-side. Preserve
+    // the original database error instead of replacing it with a rollback error.
+    try {
+      await connection.rollback();
+    } catch (_rollbackError) {
+      // The original query error is the useful operational signal.
+    }
     throw error;
   } finally {
     await connection.end();
