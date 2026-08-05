@@ -17,7 +17,27 @@ class WechatMiniCodeError extends Error {
   }
 }
 
-function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch, logger = { warn() {} } } = {}) {
+function fetchWithTimeout(fetchImpl, url, options = {}, timeoutMs = 5000) {
+  let timer;
+  let controller;
+  const requestOptions = { ...options };
+  if (typeof AbortController === 'function') {
+    controller = new AbortController();
+    requestOptions.signal = controller.signal;
+  }
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      if (controller) controller.abort();
+      const error = new Error('request timeout');
+      error.name = 'TimeoutError';
+      reject(error);
+    }, timeoutMs);
+  });
+  return Promise.race([Promise.resolve().then(() => fetchImpl(url, requestOptions)), timeout])
+    .finally(() => clearTimeout(timer));
+}
+
+function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch, logger = { warn() {} }, timeoutMs = 5000 } = {}) {
   const appId = env.WX_MINIPROGRAM_APP_ID;
   const appSecret = env.WX_MINIPROGRAM_APP_SECRET;
 
@@ -32,7 +52,7 @@ function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch, log
       url.searchParams.set('secret', appSecret);
       url.searchParams.set('js_code', code);
       url.searchParams.set('grant_type', 'authorization_code');
-      response = await fetchImpl(url, { method: 'GET', signal: AbortSignal.timeout(5000) });
+      response = await fetchWithTimeout(fetchImpl, url, { method: 'GET' }, timeoutMs);
     } catch (error) {
       logger.warn({ stage: 'jscode2session_request', errorName: error && error.name }, '[wechat-auth-upstream]');
       throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务暂不可用');
@@ -64,7 +84,7 @@ function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch, log
   };
 }
 
-function createWechatMiniCode({ env = process.env, fetchImpl = globalThis.fetch, logger = { warn() {} } } = {}) {
+function createWechatMiniCode({ env = process.env, fetchImpl = globalThis.fetch, logger = { warn() {} }, timeoutMs = 5000 } = {}) {
   const appId = env.WX_MINIPROGRAM_APP_ID;
   const appSecret = env.WX_MINIPROGRAM_APP_SECRET;
   let cachedToken = null;
@@ -72,7 +92,7 @@ function createWechatMiniCode({ env = process.env, fetchImpl = globalThis.fetch,
   async function requestJson(url, options) {
     let response;
     try {
-      response = await fetchImpl(url, { ...options, signal: AbortSignal.timeout(5000) });
+      response = await fetchWithTimeout(fetchImpl, url, options, timeoutMs);
     } catch (_error) {
       throw new WechatMiniCodeError('WECHAT_MINI_CODE_UNAVAILABLE', '微信小程序码服务暂不可用');
     }
@@ -106,12 +126,11 @@ function createWechatMiniCode({ env = process.env, fetchImpl = globalThis.fetch,
     const token = await accessToken();
     let response;
     try {
-      response = await fetchImpl(`${WECHAT_MINI_CODE_ENDPOINT}?access_token=${encodeURIComponent(token)}`, {
+      response = await fetchWithTimeout(fetchImpl, `${WECHAT_MINI_CODE_ENDPOINT}?access_token=${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ scene, page, check_path: true }),
-        signal: AbortSignal.timeout(5000),
-      });
+      }, timeoutMs);
     } catch (_error) {
       throw new WechatMiniCodeError('WECHAT_MINI_CODE_UNAVAILABLE', '微信小程序码服务暂不可用');
     }

@@ -63,6 +63,16 @@ describe('微信 code 校验 HTTP 请求', () => {
     await expect(authenticate('test-login-code')).rejects.toMatchObject({ code: 'WECHAT_AUTH_UNAVAILABLE' });
   });
 
+  it('不依赖 AbortSignal.timeout，并在超时后返回服务不可用', async () => {
+    const authenticate = createWechatAuth({
+      env: { WX_MINIPROGRAM_APP_ID: 'test-app-id', WX_MINIPROGRAM_APP_SECRET: 'test-app-secret' },
+      timeoutMs: 10,
+      fetchImpl: () => new Promise(() => {}),
+    });
+
+    await expect(authenticate('test-login-code')).rejects.toMatchObject({ code: 'WECHAT_AUTH_UNAVAILABLE' });
+  });
+
   it.each([undefined, '', 'invalid openid'])('缺少或非法 openid 不建立身份', async (openid) => {
     const authenticate = createWechatAuth({
       env: { WX_MINIPROGRAM_APP_ID: 'test-app-id', WX_MINIPROGRAM_APP_SECRET: 'test-app-secret' },
