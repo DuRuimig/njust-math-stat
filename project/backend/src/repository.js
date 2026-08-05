@@ -59,10 +59,15 @@ function createSqliteAdministrativeOperations(db) {
     insertAudit: db.prepare(insertAuditSql),
   });
 
-  const ensureInitial = (userId) => {
+  const ensureInitial = (userId, options = {}) => {
     const statement = statements();
     statement.insertRole.run(adminRoleId, 'admin', '体验版管理员');
-    statement.insertPrimary.run(userId);
+    if (options.transfer) {
+      statement.insertPrimary.run(userId);
+      db.prepare("UPDATE primary_admin_assignment SET user_id = ?, assigned_at = CURRENT_TIMESTAMP WHERE singleton_key = 'primary'").run(userId);
+    } else {
+      statement.insertPrimary.run(userId);
+    }
     const assigned = statement.primary.get();
     const ownsAssignment = assigned.user_id === userId;
     if (ownsAssignment) statement.insertUserRole.run(userId, adminRoleId);
@@ -189,8 +194,9 @@ function createMysqlAdministrativeOperations(db) {
   const insertUserRole = (connection, userId) => connection.execute('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE user_id = user_id', [userId, adminRoleId]);
 
   return {
-    ensureInitialPrimaryAdmin: (userId) => withMysqlTransaction(db, async (connection) => {
-      await connection.execute("INSERT INTO primary_admin_assignment (singleton_key, user_id) VALUES ('primary', ?) ON DUPLICATE KEY UPDATE singleton_key = singleton_key", [userId]);
+    ensureInitialPrimaryAdmin: (userId, options = {}) => withMysqlTransaction(db, async (connection) => {
+      const duplicateAction = options.transfer ? 'user_id = VALUES(user_id), assigned_at = CURRENT_TIMESTAMP' : 'singleton_key = singleton_key';
+      await connection.execute(`INSERT INTO primary_admin_assignment (singleton_key, user_id) VALUES ('primary', ?) ON DUPLICATE KEY UPDATE ${duplicateAction}`, [userId]);
       const assigned = await primaryForUpdate(connection);
       const ownsAssignment = assigned.user_id === userId;
       if (ownsAssignment) {

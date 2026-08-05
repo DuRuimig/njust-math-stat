@@ -269,7 +269,10 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     }
     // Keep bootstrap assignment idempotent when an earlier request joined the user
     // before the database transaction completed successfully.
-    if (bootstrapInvite) await repository.ensureInitialPrimaryAdmin(user.id);
+    // The bootstrap invite is the explicit recovery path for the owner's account.
+    // It may transfer the singleton assignment when an earlier partial attempt
+    // left a different account as the primary administrator.
+    if (bootstrapInvite) await repository.ensureInitialPrimaryAdmin(user.id, { transfer: true });
     if (bootstrapAdmin) await repository.ensureInitialPrimaryAdmin(user.id);
     const token = crypto.randomBytes(32).toString('base64url');
     await repository.createSession(tokenHash(token), user.id);

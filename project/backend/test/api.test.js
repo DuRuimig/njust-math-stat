@@ -306,12 +306,17 @@ describe('v1 API 契约', () => {
       invitationDb.exec(fs.readFileSync(path.resolve(__dirname, `../../../database/migrations/${migration}`), 'utf8'));
     }
     const userId = crypto.randomUUID();
+    const oldPrimaryUserId = crypto.randomUUID();
     const groupId = crypto.randomUUID();
     const accountId = `wechat:${crypto.createHash('sha256').update('invite-bootstrap-retry-code').digest('hex')}`;
     const codeHash = crypto.createHash('sha256').update(bootstrapCode).digest('hex');
     invitationDb.prepare('INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)').run(userId, accountId, '新同学');
+    invitationDb.prepare('INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)').run(oldPrimaryUserId, 'wechat:old-primary', '旧主管理员');
     invitationDb.prepare('INSERT INTO invitation_groups (id, label, code_hash, code_hint, enabled) VALUES (?, ?, ?, ?, 1)').run(groupId, '初始管理员邀请', codeHash, bootstrapCode.slice(-4));
     invitationDb.prepare('INSERT INTO invitation_memberships (user_id, invitation_group_id) VALUES (?, ?)').run(userId, groupId);
+    invitationDb.prepare("INSERT INTO primary_admin_assignment (singleton_key, user_id) VALUES ('primary', ?)").run(oldPrimaryUserId);
+    invitationDb.prepare('INSERT INTO roles (id, role_key, description) VALUES (?, ?, ?)').run('b2ab8a66-7151-4f49-9bf0-e4beeb3f5ea3', 'admin', '体验版管理员');
+    invitationDb.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)').run(oldPrimaryUserId, 'b2ab8a66-7151-4f49-9bf0-e4beeb3f5ea3');
     const invitationApp = createApp({
       db: invitationDb,
       env: 'production',
@@ -323,6 +328,8 @@ describe('v1 API 契约', () => {
     const login = await request(invitationApp).post(`${v1}/auth/wechat`).send({ code: 'bootstrap-retry-code', inviteCode: bootstrapCode });
     expect(login.status).toBe(201);
     expect((await request(invitationApp).get(`${v1}/profile`).set(auth(login.body.token))).body).toMatchObject({ isAdmin: true, isPrimaryAdmin: true });
+    expect(invitationDb.prepare("SELECT user_id FROM primary_admin_assignment WHERE singleton_key = 'primary'").get()).toEqual({ user_id: userId });
+    expect(invitationDb.prepare('SELECT 1 FROM user_roles WHERE user_id = ? AND role_id = ?').get(oldPrimaryUserId, 'b2ab8a66-7151-4f49-9bf0-e4beeb3f5ea3')).toBeTruthy();
     invitationDb.close();
   });
 
