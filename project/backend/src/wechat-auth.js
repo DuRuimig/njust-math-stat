@@ -1,3 +1,5 @@
+const https = require('node:https');
+
 const WECHAT_CODE_ENDPOINT = 'https://api.weixin.qq.com/sns/jscode2session';
 const WECHAT_ACCESS_TOKEN_ENDPOINT = 'https://api.weixin.qq.com/cgi-bin/token';
 const WECHAT_MINI_CODE_ENDPOINT = 'https://api.weixin.qq.com/wxa/getwxacodeunlimit';
@@ -37,13 +39,37 @@ function fetchWithTimeout(fetchImpl, url, options = {}, timeoutMs = 5000) {
     .finally(() => clearTimeout(timer));
 }
 
-function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch, logger = { warn() {} }, timeoutMs = 5000 } = {}) {
+function httpsFetch(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const request = https.request(url, {
+      method: options.method || 'GET',
+      headers: options.headers,
+    }, (response) => {
+      const chunks = [];
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () => {
+        const body = chunks.join('');
+        resolve({
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          status: response.statusCode,
+          json: async () => JSON.parse(body),
+        });
+      });
+    });
+    request.on('error', reject);
+    if (options.body) request.write(options.body);
+    request.end();
+  });
+}
+
+function createWechatAuth({ env = process.env, fetchImpl, logger = { warn() {} }, timeoutMs = 5000 } = {}) {
   const appId = env.WX_MINIPROGRAM_APP_ID;
   const appSecret = env.WX_MINIPROGRAM_APP_SECRET;
 
   return async function authenticateWechatCode(code) {
     if (!appId || !appSecret) throw new WechatAuthError('WECHAT_LOGIN_UNCONFIGURED', '真实微信登录尚未配置，无法完成身份认证');
-    if (typeof fetchImpl !== 'function') throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务不可用');
+    const upstreamFetch = typeof fetchImpl === 'function' ? fetchImpl : httpsFetch;
 
     let response;
     try {
@@ -52,7 +78,7 @@ function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch, log
       url.searchParams.set('secret', appSecret);
       url.searchParams.set('js_code', code);
       url.searchParams.set('grant_type', 'authorization_code');
-      response = await fetchWithTimeout(fetchImpl, url, { method: 'GET' }, timeoutMs);
+      response = await fetchWithTimeout(upstreamFetch, url, { method: 'GET' }, timeoutMs);
     } catch (error) {
       logger.warn({
         stage: 'jscode2session_request',
