@@ -233,6 +233,7 @@ function deferSessionPersistence(options) {
 }
 
 function loginWithWechat(options) {
+  options = options || {}
   if (typeof wx === "undefined" || typeof wx.login !== "function") {
     return Promise.reject(apiError("当前运行环境不支持微信登录", "WECHAT_LOGIN_UNAVAILABLE"))
   }
@@ -246,7 +247,10 @@ function loginWithWechat(options) {
       fail: function () { reject(apiError("微信登录未完成，请重试", "WECHAT_LOGIN_UNAVAILABLE")) }
     })
   }).then(function (code) {
-    return request({ method: "POST", path: API_PREFIX + "/auth/wechat", auth: false, data: { code: code } })
+    var data = { code: code }
+    var inviteCode = cleanText(options.inviteCode, 128)
+    if (inviteCode) data.inviteCode = inviteCode
+    return request({ method: "POST", path: API_PREFIX + "/auth/wechat", auth: false, data: data })
   }).then(function (payload) {
     if (!payload || typeof payload.token !== "string" || payload.mode !== "wechat" || !Number.isInteger(payload.expiresInSeconds) || payload.expiresInSeconds < 1) {
       throw apiError("微信登录响应无效", "INVALID_SESSION_RESPONSE")

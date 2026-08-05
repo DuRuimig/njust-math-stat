@@ -1,0 +1,6 @@
+.invite-page { padding-top: 72rpx; }
+.invite-panel { margin-top: 44rpx; padding: 30rpx 26rpx 26rpx; }
+.invite-input { margin-top: 22rpx; }
+.invite-button { width: 100%; margin-top: 24rpx; }
+.scene-hint { display: block; margin-top: 12rpx; color: var(--indigo); font-size: 22rpx; line-height: 1.5; }
+.back-button { display: block; margin: 30rpx auto 0; }

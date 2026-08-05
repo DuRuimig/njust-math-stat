@@ -2,7 +2,7 @@
   <view wx:if="{{course}}">
     <view class="course-heading">
       <text class="page-title">{{course.name}}</text>
-      <button class="like-control {{hasLiked ? 'liked' : ''}}" bindtap="likeCourse" loading="{{isLiking}}" disabled="{{!isLoggedIn || isLiking}}" aria-label="{{hasLiked ? '取消点赞，点赞数 ' + likeCount : '点赞，点赞数 ' + likeCount}}">
+      <button class="like-control {{hasLiked ? 'liked' : ''}}" bindtap="likeCourse" loading="{{isLiking}}" disabled="{{isLiking}}" aria-label="{{hasLiked ? '取消点赞，点赞数 ' + likeCount : '点赞，点赞数 ' + likeCount}}">
         <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!hasLiked}}" class="like-heart-cutout"></view></view></view>
         <text class="like-count">{{likeCount}}</text>
       </button>
@@ -25,7 +25,7 @@
 
     <view class="section-head"><text class="section-title">课程评论</text></view>
     <view class="feedback-card surface">
-      <view class="comment-composer"><textarea class="field-textarea" value="{{commentText}}" maxlength="300" placeholder="登录后可评论" disabled="{{!isLoggedIn || isSubmittingComment}}" bindinput="onCommentInput"></textarea><view class="comment-action"><text>{{commentText.length}}/300</text><button class="primary-button comment-submit" loading="{{isSubmittingComment}}" disabled="{{!isLoggedIn || isSubmittingComment}}" bindtap="submitComment">发布评论</button></view></view>
+      <view class="comment-composer"><textarea class="field-textarea" value="{{commentText}}" maxlength="300" placeholder="登录后可评论" disabled="{{isSubmittingComment}}" bindinput="onCommentInput"></textarea><view class="comment-action"><text>{{commentText.length}}/300</text><button class="primary-button comment-submit" loading="{{isSubmittingComment}}" disabled="{{isSubmittingComment}}" bindtap="submitComment">发布评论</button></view></view>
        <view wx:if="{{comments.length}}" class="comment-list"><view wx:for="{{comments}}" wx:key="id" class="comment-item"><view class="comment-meta"><text>{{item.authorNickname}}</text><view class="comment-meta-actions"><text wx:if="{{item.createdAtLabel}}">{{item.createdAtLabel}}</text><button wx:if="{{item.canDelete || item.canModerate}}" class="comment-delete" data-id="{{item.id}}" loading="{{deletingCommentId === item.id}}" disabled="{{deletingCommentId && deletingCommentId !== item.id}}" bindtap="deleteComment">删除</button></view></view><text class="comment-content">{{item.content}}</text></view></view>
       <view wx:else class="comment-empty"><text>暂无评论</text></view>
     </view>
@@ -42,7 +42,7 @@
             <text class="meta-line">{{item.department}}</text>
             <text class="teacher-term">{{item.sourceTermsLabel}}</text>
           </view>
-          <button class="like-control teacher-like-control {{item.hasLiked ? 'liked' : ''}}" data-id="{{item.directoryId}}" catchtap="likeTeacher" loading="{{item.isLiking}}" disabled="{{!isLoggedIn || item.isLiking}}" aria-label="{{item.hasLiked ? '取消点赞，点赞数 ' + item.likeCount : '点赞，点赞数 ' + item.likeCount}}">
+          <button class="like-control teacher-like-control {{item.hasLiked ? 'liked' : ''}}" data-id="{{item.directoryId}}" catchtap="likeTeacher" loading="{{item.isLiking}}" disabled="{{item.isLiking}}" aria-label="{{item.hasLiked ? '取消点赞，点赞数 ' + item.likeCount : '点赞，点赞数 ' + item.likeCount}}">
             <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{item.hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!item.hasLiked}}" class="like-heart-cutout"></view></view></view>
             <text class="like-count">{{item.likeCount}}</text>
           </button>

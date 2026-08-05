@@ -19,7 +19,7 @@
           <text class="summary-value">{{teacher.advisorQualifications}}</text>
         </view>
       </view>
-      <button class="like-control {{hasLiked ? 'liked' : ''}}" bindtap="likeTeacher" loading="{{isLiking}}" disabled="{{!isLoggedIn || isLiking}}" aria-label="{{hasLiked ? '取消点赞，点赞数 ' + likeCount : '点赞，点赞数 ' + likeCount}}">
+      <button class="like-control {{hasLiked ? 'liked' : ''}}" bindtap="likeTeacher" loading="{{isLiking}}" disabled="{{isLiking}}" aria-label="{{hasLiked ? '取消点赞，点赞数 ' + likeCount : '点赞，点赞数 ' + likeCount}}">
         <view class="like-heart" aria-hidden="true"><view class="like-heart-shape {{hasLiked ? 'like-heart-filled' : 'like-heart-outline'}}"><view wx:if="{{!hasLiked}}" class="like-heart-cutout"></view></view></view>
         <text class="like-count">{{likeCount}}</text>
       </button>
@@ -40,8 +40,8 @@
     <view class="section-head"><text class="section-title">教师评价</text></view>
     <view class="feedback-card surface">
       <view class="comment-composer">
-        <textarea class="field-textarea" value="{{commentText}}" maxlength="300" placeholder="{{hasLiked ? '写下你的评价' : '点赞后可评价教师'}}" disabled="{{!isLoggedIn || !hasLiked || isSubmittingComment}}" bindinput="onCommentInput"></textarea>
-        <view class="comment-action"><text>{{commentText.length}}/300</text><button class="primary-button comment-submit" loading="{{isSubmittingComment}}" disabled="{{!isLoggedIn || !hasLiked || isSubmittingComment}}" bindtap="submitComment">发布评价</button></view>
+        <textarea class="field-textarea" value="{{commentText}}" maxlength="300" placeholder="{{hasLiked ? '写下你的评价' : '登录并点赞后可评价教师'}}" disabled="{{isSubmittingComment}}" bindinput="onCommentInput"></textarea>
+        <view class="comment-action"><text>{{commentText.length}}/300</text><button class="primary-button comment-submit" loading="{{isSubmittingComment}}" disabled="{{isSubmittingComment}}" bindtap="submitComment">发布评价</button></view>
       </view>
       <view wx:if="{{comments.length}}" class="comment-list">
         <view wx:for="{{comments}}" wx:key="id" class="comment-item">

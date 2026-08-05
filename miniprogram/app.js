@@ -2,8 +2,7 @@ App({
   globalData: {
     // 体验版显式走云托管；本地开发需手动改回 "local"。
     apiMode: "cloud",
-    // 当前体验版先使用姓名学号测试身份；真实微信登录保留到后续独立启用。
-    authMode: "test-identity",
+    authMode: "wechat",
     apiBaseUrl: "http://127.0.0.1:2001",
     apiContractPrefix: "/api/v1",
     cloudEnvironmentId: "prod-d5gfes93j0a83438c",

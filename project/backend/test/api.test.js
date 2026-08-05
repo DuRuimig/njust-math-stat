@@ -23,7 +23,7 @@ const teacherDirectoryKey = (teacher) => {
 beforeAll(() => {
   const databasePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'njust-api-')), 'test.sqlite');
   db = sqliteDatabase(databasePath);
-  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql', '005_account_moderation.sql', '006_primary_admin.sql']) {
+  for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql', '005_account_moderation.sql', '006_primary_admin.sql', '007_invitation_access.sql']) {
     db.exec(fs.readFileSync(path.resolve(__dirname, `../../../database/migrations/${migration}`), 'utf8'));
   }
   db.prepare('INSERT INTO courses (id, stable_key, code, normalized_name, name) VALUES (?, ?, ?, ?, ?)')
@@ -238,6 +238,64 @@ describe('v1 API 契约', () => {
     const invalidSession = await request(wechatApp).post(coursePath('likes')).set(auth('forged-bearer-token'));
     expect(invalidSession.status).toBe(401);
     expect(invalidSession.body.error.code).toBe('SESSION_INVALID');
+  });
+
+  it('邀请制允许初始管理员创建可重复使用的二维码邀请码，并在停用后阻止新成员', async () => {
+    const bootstrapCode = 'NJUST-BOOT-2026';
+    const generatedScenes = [];
+    const invitationDatabasePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'njust-invite-')), 'test.sqlite');
+    const invitationDb = sqliteDatabase(invitationDatabasePath);
+    for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql', '005_account_moderation.sql', '006_primary_admin.sql', '007_invitation_access.sql']) {
+      invitationDb.exec(fs.readFileSync(path.resolve(__dirname, `../../../database/migrations/${migration}`), 'utf8'));
+    }
+    invitationDb.prepare('INSERT INTO courses (id, stable_key, code, normalized_name, name) VALUES (?, ?, ?, ?, ?)')
+      .run(crypto.randomUUID(), courseKey, '11129201', '数学分析(I)', '数学分析（I）');
+    const invitationApp = createApp({
+      db: invitationDb,
+      env: 'production',
+      invitationRequired: true,
+      initialAdminInviteCode: bootstrapCode,
+      wechatAuth: async (code) => ({ openid: `invite-${code}` }),
+      wechatMiniCode: async ({ scene }) => {
+        generatedScenes.push(scene);
+        return { buffer: Buffer.from('mini-code-fixture'), contentType: 'image/png' };
+      },
+    });
+
+    const uninvited = await request(invitationApp).post(`${v1}/auth/wechat`).send({ code: 'first-user-code' });
+    expect(uninvited.status).toBe(403);
+    expect(uninvited.body.error.code).toBe('INVITE_REQUIRED');
+    const oversizedInvite = await request(invitationApp).post(`${v1}/auth/wechat`).send({ code: 'oversized-invite-code', inviteCode: 'A'.repeat(21) });
+    expect(oversizedInvite.status).toBe(400);
+    expect(oversizedInvite.body.error.code).toBe('VALIDATION_FAILED');
+
+    const adminLogin = await request(invitationApp).post(`${v1}/auth/wechat`).send({ code: 'bootstrap-user-code', inviteCode: bootstrapCode });
+    expect(adminLogin.status).toBe(201);
+    const adminToken = adminLogin.body.token;
+    expect((await request(invitationApp).get(`${v1}/profile`).set(auth(adminToken))).body).toMatchObject({ isAdmin: true, isPrimaryAdmin: true });
+
+    const created = await request(invitationApp).post(`${v1}/admin/invitation-groups`).set(auth(adminToken)).send({ label: '数统院 2026 秋季', code: 'MATHSTAT-2026-A' });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ inviteCode: 'MATHSTAT-2026-A', sharePath: '/pages/invite/index?inviteCode=MATHSTAT-2026-A' });
+    const groupId = created.body.group.id;
+
+    const miniCode = await request(invitationApp).post(`${v1}/admin/invitation-groups/${groupId}/mini-code`).set(auth(adminToken)).send({ code: 'MATHSTAT-2026-A' });
+    expect(miniCode.status).toBe(200);
+    expect(miniCode.headers['content-type']).toContain('image/png');
+    expect(generatedScenes).toEqual(['inviteCode=MATHSTAT-2026-A']);
+
+    const firstMember = await request(invitationApp).post(`${v1}/auth/wechat`).send({ code: 'member-one-code', inviteCode: 'MATHSTAT-2026-A' });
+    expect(firstMember.status).toBe(201);
+    expect((await request(invitationApp).post(coursePath('likes')).set(auth(firstMember.body.token))).status).toBe(201);
+
+    const disabled = await request(invitationApp).patch(`${v1}/admin/invitation-groups/${groupId}`).set(auth(adminToken)).send({ enabled: false });
+    expect(disabled.status).toBe(200);
+    const blockedMember = await request(invitationApp).post(`${v1}/auth/wechat`).send({ code: 'member-two-code', inviteCode: 'MATHSTAT-2026-A' });
+    expect(blockedMember.status).toBe(403);
+    expect(blockedMember.body.error.code).toBe('INVITE_DISABLED');
+    expect((await request(invitationApp).delete(coursePath('likes')).set(auth(firstMember.body.token))).status).toBe(200);
+    expect(await request(invitationApp).post(`${v1}/admin/invitation-groups/${groupId}/mini-code`).set(auth(adminToken)).send({ code: 'MATHSTAT-2026-A' })).toMatchObject({ status: 409 });
+    invitationDb.close();
   });
 
   it('同一微信身份的并发首次登录不会返回 500，且只创建一个用户记录', async () => {

@@ -11,6 +11,10 @@ function shouldShowSessionExpired(error) {
   return !(error && (error.sessionSuperseded || error.code === "SESSION_SUPERSEDED"))
 }
 
+function openInvite(target) {
+  wx.navigateTo({ url: "/pages/invite/index?target=" + encodeURIComponent(target || "/pages/profile/index") })
+}
+
 Page({
   data: {
     query: "",
@@ -160,8 +164,8 @@ Page({
     var teacherId = event.currentTarget.dataset.id
     var teacher = this.data.teachers.filter(function (item) { return item.id === teacherId })[0]
     if (!teacher) return
+    if (!this.data.isLoggedIn) return openInvite("/pages/teacher-detail/index?id=" + encodeURIComponent(teacher.directoryId))
     if (!this.data.feedbackConnected) return wx.showToast({ title: "点赞服务未连接，无法点赞", icon: "none" })
-    if (!this.data.isLoggedIn) return wx.showToast({ title: "请先进入测试身份", icon: "none" })
     if (!api.hasSession()) {
       this.handleSessionInvalid({ sessionInvalid: true })
       return wx.showToast({ title: "登录已失效，请重新登录", icon: "none" })

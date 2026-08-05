@@ -1,0 +1,13 @@
+<view class="page-shell invite-page">
+  <text class="eyebrow">NJUST MATH &amp; STAT</text>
+  <text class="page-title">输入邀请码</text>
+  <text class="page-lead">完成微信登录后即可参与课程和教师互动。</text>
+  <view class="invite-panel surface">
+    <text class="section-title">邀请码</text>
+    <input class="field-input invite-input" value="{{inviteCode}}" maxlength="20" placeholder="请输入邀请码" bindinput="onInviteCodeInput" confirm-type="done" />
+    <text wx:if="{{inviteCodeFromScene}}" class="scene-hint">已从邀请链接读取邀请码，可直接登录。</text>
+    <button class="primary-button invite-button" loading="{{isLoggingIn}}" disabled="{{isLoggingIn}}" bindtap="login">微信登录并加入</button>
+  </view>
+  <view wx:if="{{errorMessage}}" class="service-notice"><text>加入未完成</text><text>{{errorMessage}}</text></view>
+  <button class="text-button back-button" bindtap="goBack">返回上一页</button>
+</view>

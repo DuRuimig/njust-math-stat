@@ -4,6 +4,7 @@ const profilePagePath = require.resolve('../../../miniprogram/pages/profile/inde
 const courseDetailPagePath = require.resolve('../../../miniprogram/pages/course-detail/index');
 const teachingPagePath = require.resolve('../../../miniprogram/pages/teaching/index');
 const teacherDetailPagePath = path.resolve(__dirname, '../../../miniprogram/pages/teacher-detail/index.js');
+const invitePagePath = path.resolve(__dirname, '../../../miniprogram/pages/invite/index.js');
 const teacherSummaryBatchSize = 20;
 const teacherSummaryRequestCount = Math.ceil(require('../../../miniprogram/data/course-library').teachers.length / teacherSummaryBatchSize);
 
@@ -104,6 +105,14 @@ function loadTeacherDetailPage() {
   return definition;
 }
 
+function loadInvitePage() {
+  let definition;
+  global.Page = (pageDefinition) => { definition = pageDefinition; };
+  delete require.cache[invitePagePath];
+  require(invitePagePath);
+  return definition;
+}
+
 function createPage(definition) {
   const page = {
     data: { ...definition.data },
@@ -142,6 +151,7 @@ afterEach(() => {
   delete require.cache[courseDetailPagePath];
   delete require.cache[teachingPagePath];
   delete require.cache[teacherDetailPagePath];
+  delete require.cache[invitePagePath];
 });
 
 describe('小程序会话与资料请求边界', () => {
@@ -366,6 +376,29 @@ describe('小程序会话与资料请求边界', () => {
     expect(runtime.removalCount()).toBe(0);
     expect(runtime.getStoredSession()).toMatchObject({ token: 'local-test-session', mode: 'wechat' });
     expect(api.hasSession()).toBe(true);
+  });
+
+  it('邀请登录提交邀请码，邀请页能读取小程序码 scene 并限制输入长度', async () => {
+    const pending = [];
+    installCloudRuntime((options) => { pending.push(options); }, { initialSession: null, loginCode: 'invite-login-code' });
+    const api = loadApi();
+
+    const loginRequest = api.loginWithWechat({ inviteCode: 'MATHSTAT-2026-A', deferPersist: true });
+    await flushPromises();
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({
+      path: '/api/v1/auth/wechat',
+      method: 'POST',
+      data: { code: 'invite-login-code', inviteCode: 'MATHSTAT-2026-A' },
+    });
+    pending[0].success({ statusCode: 201, data: { token: 'invite-token', mode: 'wechat', expiresInSeconds: 60 } });
+    await expect(loginRequest).resolves.toMatchObject({ token: 'invite-token', mode: 'wechat' });
+
+    const page = createPage(loadInvitePage());
+    page.onLoad({ scene: 'inviteCode%3DMATHSTAT-2026-A', target: '/pages/course-detail/index?key=test' });
+    expect(page.data).toMatchObject({ inviteCode: 'MATHSTAT-2026-A', inviteCodeFromScene: true, target: '/pages/course-detail/index?key=test' });
+    page.onInviteCodeInput({ detail: { value: 'A'.repeat(21) } });
+    expect(page.data.inviteCode).toHaveLength(20);
   });
 
   it('未明确失效的服务与网络错误保留本地会话', async () => {

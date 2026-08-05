@@ -5,6 +5,9 @@ function createRepository(db) {
 
 const adminRoleId = 'b2ab8a66-7151-4f49-9bf0-e4beeb3f5ea3';
 const insertAuditSql = 'INSERT INTO admin_audit_logs (id, actor_user_id, action, target_type, target_id) VALUES (?, ?, ?, ?, ?)';
+const invitationGroupColumns = 'id, label, code_hash, code_hint, enabled, expires_at, created_at, revoked_at';
+const invitationGroupQualifiedColumns = invitationGroupColumns.split(', ').map((column) => `g.${column}`).join(', ');
+const invitationGroupGroupBy = invitationGroupColumns.split(', ').map((column) => `g.${column}`).join(', ');
 
 function isUserAccountUniqueConflict(error) {
   if (!error) return false;
@@ -22,6 +25,7 @@ function createSqliteRepository(db) {
     run,
     nowPlusSevenDays: "datetime('now', '+7 days')",
     insertIgnore: 'ON CONFLICT(user_id, TARGET_ID) DO NOTHING',
+    membershipInsert: 'INSERT OR IGNORE INTO invitation_memberships (user_id, invitation_group_id) VALUES (?, ?)',
   });
   return { ...operations, ...createSqliteAdministrativeOperations(db) };
 }
@@ -39,6 +43,7 @@ function createMysqlRepository(db) {
     run,
     nowPlusSevenDays: 'DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY)',
     insertIgnore: 'ON DUPLICATE KEY UPDATE user_id = user_id',
+    membershipInsert: 'INSERT INTO invitation_memberships (user_id, invitation_group_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE user_id = user_id',
   });
   return { ...operations, ...createMysqlAdministrativeOperations(db) };
 }
@@ -49,7 +54,7 @@ function createSqliteAdministrativeOperations(db) {
     insertUserRole: db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)'),
     insertPrimary: db.prepare("INSERT OR IGNORE INTO primary_admin_assignment (singleton_key, user_id) VALUES ('primary', ?)"),
     primary: db.prepare("SELECT user_id FROM primary_admin_assignment WHERE singleton_key = 'primary'"),
-    user: db.prepare('SELECT id, is_banned FROM users WHERE id = ?'),
+    user: db.prepare('SELECT id, account_id, is_banned FROM users WHERE id = ?'),
     hasAdminRole: db.prepare('SELECT 1 FROM user_roles WHERE user_id = ? AND role_id = ?'),
     insertAudit: db.prepare(insertAuditSql),
   });
@@ -122,9 +127,9 @@ function createSqliteAdministrativeOperations(db) {
     if (!target) return { missing: true };
     const targetIsAdmin = Boolean(statement.hasAdminRole.get(targetUserId, adminRoleId)) || Boolean(assigned && assigned.user_id === targetUserId);
     if (targetIsAdmin && !actorIsPrimary) return { protectedAdmin: true };
-    const existing = db.prepare('SELECT id FROM users WHERE account_id = ? AND id <> ?').get(accountId, targetUserId);
+    const existing = db.prepare('SELECT id FROM users WHERE student_number = ? AND id <> ?').get(studentNumber, targetUserId);
     if (existing) return { conflict: true };
-    db.prepare('UPDATE users SET account_id = ?, legal_name = ?, student_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(accountId, name, studentNumber, targetUserId);
+    db.prepare("UPDATE users SET account_id = CASE WHEN account_id LIKE 'test-identity:%' THEN ? ELSE account_id END, legal_name = ?, student_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(accountId, name, studentNumber, targetUserId);
     db.prepare('DELETE FROM sessions WHERE user_id = ?').run(targetUserId);
     statement.insertAudit.run(auditId, actorUserId, 'update_identity', 'user', targetUserId);
     return { updated: true };
@@ -245,10 +250,10 @@ function createMysqlAdministrativeOperations(db) {
       if (!target) return { missing: true };
       const targetIsAdmin = await hasAdminRole(connection, targetUserId) || Boolean(assigned && assigned.user_id === targetUserId);
       if (targetIsAdmin && !actorIsPrimary) return { protectedAdmin: true };
-      const existing = (await connection.execute('SELECT id FROM users WHERE account_id = ? AND id <> ? FOR UPDATE', [accountId, targetUserId]))[0][0];
+      const existing = (await connection.execute('SELECT id FROM users WHERE student_number = ? AND id <> ? FOR UPDATE', [studentNumber, targetUserId]))[0][0];
       if (existing) return { conflict: true };
       try {
-        await connection.execute('UPDATE users SET account_id = ?, legal_name = ?, student_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [accountId, name, studentNumber, targetUserId]);
+        await connection.execute("UPDATE users SET account_id = CASE WHEN account_id LIKE 'test-identity:%' THEN ? ELSE account_id END, legal_name = ?, student_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [accountId, name, studentNumber, targetUserId]);
       } catch (error) {
         if (isUserAccountUniqueConflict(error)) return { conflict: true };
         throw error;
@@ -274,7 +279,7 @@ function createMysqlAdministrativeOperations(db) {
   };
 }
 
-function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIgnore }) {
+function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIgnore, membershipInsert }) {
   const targetSql = (type) => ({ table: `${type}s`, key: type === 'course' ? 'stable_key' : 'directory_key', column: `${type}_id` });
   return {
     findSession: (hash) => one(`SELECT u.id, u.account_id, u.nickname, u.avatar_url, u.legal_name, u.student_number FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > CURRENT_TIMESTAMP AND u.is_banned = 0`, hash),
@@ -316,6 +321,27 @@ function createRepositoryOperations({ one, many, run, nowPlusSevenDays, insertIg
     },
     allTeacherKeys: () => many('SELECT directory_key FROM teachers ORDER BY directory_key'),
     findUserByAccount: (accountId) => one('SELECT id, is_banned FROM users WHERE account_id = ?', accountId),
+    isInvited: async (userId) => Boolean(await one('SELECT 1 FROM invitation_memberships WHERE user_id = ?', userId)),
+    invitationStatus: async (userId) => one(`SELECT g.id, g.label, g.enabled, g.expires_at, m.joined_at FROM invitation_memberships m JOIN invitation_groups g ON g.id = m.invitation_group_id WHERE m.user_id = ?`, userId),
+    findInvitationByHash: (codeHash) => one(`SELECT ${invitationGroupColumns} FROM invitation_groups WHERE code_hash = ?`, codeHash),
+    joinInvitation: async (userId, groupId) => {
+      const result = await run(membershipInsert, userId, groupId);
+      return { created: Boolean(result.changes) };
+    },
+    listInvitationGroups: async () => many(`SELECT ${invitationGroupQualifiedColumns}, COUNT(m.user_id) AS member_count FROM invitation_groups g LEFT JOIN invitation_memberships m ON m.invitation_group_id = g.id GROUP BY ${invitationGroupGroupBy} ORDER BY g.created_at DESC`),
+    createInvitationGroup: (id, label, codeHash, codeHint, enabled, expiresAt) => run('INSERT INTO invitation_groups (id, label, code_hash, code_hint, enabled, expires_at) VALUES (?, ?, ?, ?, ?, ?)', id, label, codeHash, codeHint, enabled ? 1 : 0, expiresAt || null),
+    updateInvitationGroup: async (id, fields) => {
+      const sets = [];
+      const params = [];
+      if (fields.label !== undefined) { sets.push('label = ?'); params.push(fields.label); }
+      if (fields.enabled !== undefined) { sets.push('enabled = ?'); params.push(fields.enabled ? 1 : 0); sets.push('revoked_at = CASE WHEN ? THEN NULL ELSE COALESCE(revoked_at, CURRENT_TIMESTAMP) END'); params.push(fields.enabled ? 1 : 0); }
+      if (fields.expiresAt !== undefined) { sets.push('expires_at = ?'); params.push(fields.expiresAt || null); }
+      if (fields.codeHash !== undefined) { sets.push('code_hash = ?'); params.push(fields.codeHash); sets.push('code_hint = ?'); params.push(fields.codeHint); }
+      if (!sets.length) return one(`SELECT ${invitationGroupColumns} FROM invitation_groups WHERE id = ?`, id);
+      params.push(id);
+      await run(`UPDATE invitation_groups SET ${sets.join(', ')} WHERE id = ?`, ...params);
+      return one(`SELECT ${invitationGroupColumns} FROM invitation_groups WHERE id = ?`, id);
+    },
     createUser: (id, accountId) => run('INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)', id, accountId, '新同学'),
     findOrCreateTestIdentity: async (accountId, id, name, studentNumber) => {
       const existing = await one('SELECT id, legal_name, student_number, is_banned FROM users WHERE account_id = ?', accountId);

@@ -4,7 +4,8 @@
     "pages/course-detail/index",
     "pages/teaching/index",
     "pages/teacher-detail/index",
-    "pages/profile/index"
+    "pages/profile/index",
+    "pages/invite/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F3F6FB",

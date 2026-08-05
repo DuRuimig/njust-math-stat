@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-本项目仅加入小程序客户端的云托管调用准备，未部署或修改任何云资源，也未连接 MySQL。以下公开标识仅用于请求路由：
+本地代码已加入小程序客户端的云托管调用、真实微信登录与邀请制准备；本次未部署或修改任何云资源，也未连接 MySQL。以下公开标识仅用于请求路由：
 
 - 云环境 ID：`prod-d5gfes93j0a83438c`
 - 云托管服务名：`express-4id4`
@@ -50,6 +50,6 @@ apiMode: "cloud"
 
 根目录 `Dockerfile` 以仓库根目录为构建上下文，使用 `8080` 端口，并在构建阶段通过 SQLite 迁移和公共课程种子数据生成无个人数据的数据库。云托管控制台保持根目录作为目标目录，Dockerfile 名称为 `Dockerfile`，服务端口为 `8080`。
 
-当前体验版使用 `POST /api/v1/auth/test-identity`：输入姓名和 12 位数字学号后建立随机 Bearer 会话。云托管部署时需单独设置 `ENABLE_TEST_IDENTITY_LOGIN=1`，它只表示允许内部测试身份，不能当作学校统一认证。小程序默认 `authMode: "test-identity"`，真实微信登录代码保留但当前不显示入口。SQLite 数据仍仅存在于单个容器运行期，容器重建或扩缩容后不保证保留，不能替代正式 MySQL。
+当前源码默认 `authMode: "wechat"`，链路为 `wx.login → POST /api/v1/auth/wechat → 服务端 jscode2session → 随机 Bearer 会话`。首次互动需要邀请码；受邀成员可继续使用，停用邀请码组只阻止新成员加入。云托管安全环境变量需配置 `WX_MINIPROGRAM_APP_ID`、`WX_MINIPROGRAM_APP_SECRET` 与随机的 `INITIAL_ADMIN_INVITE_CODE`；三者均不写入代码、前端配置、镜像或日志。首个主管理员完成创建后，应删除初始管理员邀请码。
 
-后续微信版使用 `wx.login → POST /api/v1/auth/wechat → 服务端 jscode2session → 随机 Bearer 会话`。届时才需在云托管安全环境变量中配置 `WX_MINIPROGRAM_APP_ID` 和 `WX_MINIPROGRAM_APP_SECRET`，不在代码、前端配置、镜像或日志中保存其值。
+小程序码通过微信 `wxacode.getUnlimited` 生成，页面为 `pages/invite/index`，邀请码限制为 6 至 20 位以满足 `scene` 的 32 字符上限。该页面与后端迁移必须先随体验版发布，才可在真实云端生成和扫码验证。SQLite 数据仍仅存在于单个容器运行期，容器重建或扩缩容后不保证保留，不能替代正式 MySQL。

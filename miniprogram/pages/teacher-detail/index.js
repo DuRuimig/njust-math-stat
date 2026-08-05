@@ -6,6 +6,10 @@ function shouldShowSessionExpired(error) {
   return !(error && (error.sessionSuperseded || error.code === "SESSION_SUPERSEDED"))
 }
 
+function openInvite(target) {
+  wx.navigateTo({ url: "/pages/invite/index?target=" + encodeURIComponent(target || "/pages/profile/index") })
+}
+
 Page({
   data: {
     teacher: null,
@@ -112,7 +116,7 @@ Page({
     var page = this
     var teacher = this.data.teacher
     if (!teacher) return
-    if (!api.hasSession()) return wx.showToast({ title: "请先进入测试身份", icon: "none" })
+    if (!api.hasSession()) return openInvite("/pages/teacher-detail/index?id=" + encodeURIComponent(teacher.directoryId))
     if (this.data.isLiking) return
     var wasLiked = this.data.hasLiked
     var requestEpoch = this.sessionRequestEpoch || 0
@@ -146,7 +150,7 @@ Page({
     var page = this
     var teacher = this.data.teacher
     if (!teacher) return
-    if (!this.data.isLoggedIn) return wx.showToast({ title: "请先进入测试身份", icon: "none" })
+    if (!this.data.isLoggedIn) return openInvite("/pages/teacher-detail/index?id=" + encodeURIComponent(teacher.directoryId))
     if (!this.data.hasLiked) return wx.showToast({ title: "点赞后可评价教师", icon: "none" })
     if (!this.data.commentText.trim()) return wx.showToast({ title: "请输入 1 至 300 个字符的评论", icon: "none" })
     var requestEpoch = this.sessionRequestEpoch || 0

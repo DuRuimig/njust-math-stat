@@ -7,13 +7,14 @@ const pino = require('pino');
 const pinoHttp = require('pino-http');
 const { z } = require('zod');
 const { createRepository } = require('./repository');
-const { createWechatAuth, WechatAuthError } = require('./wechat-auth');
+const { createWechatAuth, WechatAuthError, createWechatMiniCode, WechatMiniCodeError } = require('./wechat-auth');
 
 const sessionSchema = z.object({
   accountId: z.string().trim().min(3).max(80),
 }).strict();
 const wechatLoginSchema = z.object({
   code: z.string().trim().min(6).max(512),
+  inviteCode: z.string().trim().min(6).max(20).regex(/^[A-Za-z0-9_-]+$/).optional(),
 }).strict();
 const testIdentitySchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -39,12 +40,29 @@ const adminIdentitySchema = z.object({
 }).strict();
 const adminAccountStatusSchema = z.object({ banned: z.boolean() }).strict();
 const adminRoleSchema = z.object({ isAdmin: z.boolean() }).strict();
+const invitationGroupSchema = z.object({
+  label: z.string().trim().min(1).max(160),
+  code: z.string().trim().min(6).max(20).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  enabled: z.boolean().optional(),
+  expiresAt: z.string().trim().datetime({ offset: true }).nullable().optional(),
+}).strict();
+const invitationGroupPatchSchema = z.object({
+  label: z.string().trim().min(1).max(160).optional(),
+  code: z.string().trim().min(6).max(20).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  enabled: z.boolean().optional(),
+  expiresAt: z.string().trim().datetime({ offset: true }).nullable().optional(),
+}).strict().refine((data) => Object.keys(data).length > 0, '至少提交一个修改字段');
+const invitationCodeSchema = z.object({
+  code: z.string().trim().min(6).max(20).regex(/^[A-Za-z0-9_-]+$/),
+}).strict();
 const teacherSummaryQuerySchema = z.object({
   ids: z.string().max(6600).optional(),
 }).strict();
 const tokenHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
 const wechatAccountId = (openid) => `wechat:${crypto.createHash('sha256').update(openid).digest('hex')}`;
 const testIdentityAccountId = (studentNumber) => `test-identity:${crypto.createHash('sha256').update(studentNumber).digest('hex')}`;
+const normalizeInviteCode = (code) => String(code || '').trim().toUpperCase();
+const inviteCodeHash = (code) => crypto.createHash('sha256').update(normalizeInviteCode(code)).digest('hex');
 const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 function apiError(res, status, code, message) {
@@ -55,6 +73,19 @@ function bindingStatus(user) {
   if (user.legal_name && user.student_number) return 'bound';
   if (user.legal_name || user.student_number) return 'partial';
   return 'unbound';
+}
+
+function invitationGroupView(group) {
+  return {
+    id: group.id,
+    label: group.label,
+    codeHint: group.code_hint || group.codeHint,
+    enabled: Boolean(group.enabled),
+    expiresAt: group.expires_at || group.expiresAt || null,
+    revokedAt: group.revoked_at || group.revokedAt || null,
+    createdAt: group.created_at || group.createdAt,
+    memberCount: Number(group.member_count || group.memberCount || 0),
+  };
 }
 
 function decodeTargetKey(value) {
@@ -70,7 +101,7 @@ function decodeTargetKey(value) {
   }
 }
 
-function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }), wechatAuth = createWechatAuth(), testIdentityLoginEnabled = process.env.ENABLE_TEST_IDENTITY_LOGIN === '1', initialAdminAccountId = process.env.INITIAL_ADMIN_ACCOUNT_ID || '' } = {}) {
+function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }), wechatAuth = createWechatAuth(), wechatMiniCode = createWechatMiniCode(), testIdentityLoginEnabled = process.env.ENABLE_TEST_IDENTITY_LOGIN === '1', initialAdminAccountId = process.env.INITIAL_ADMIN_ACCOUNT_ID || '', initialAdminInviteCode = process.env.INITIAL_ADMIN_INVITE_CODE || '', invitationRequired = env === 'production' && process.env.NODE_ENV !== 'test' } = {}) {
   if (!db) throw new Error('createApp requires an initialized database connection');
   const repository = createRepository(db);
   const app = express();
@@ -103,6 +134,11 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   }
   async function requirePrimaryAdmin(req, res, next) {
     if (!await repository.isPrimaryAdmin(req.user.id)) return apiError(res, 403, 'PRIMARY_ADMIN_REQUIRED', '需要主管理员权限');
+    next();
+  }
+  async function requireInvited(req, res, next) {
+    if (!invitationRequired) return next();
+    if (!await repository.isInvited(req.user.id) && !await repository.isAdmin(req.user.id)) return apiError(res, 403, 'INVITE_REQUIRED', '该功能仅对受邀同学开放，请先使用有效邀请码加入');
     next();
   }
   function entityByKey(table, param, label) {
@@ -204,14 +240,43 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     }
     // Keep the WeChat identity in process memory only long enough to derive its internal account key.
     const accountId = wechatAccountId(identity.openid);
+    const existing = invitationRequired ? await repository.findUserByAccount(accountId) : null;
+    const existingInvited = invitationRequired && Boolean(existing && await repository.isInvited(existing.id));
+    const bootstrapAdmin = Boolean(initialAdminAccountId && accountId === initialAdminAccountId);
+    const suppliedInviteCode = normalizeInviteCode(parsed.data.inviteCode);
+    const bootstrapInvite = Boolean(initialAdminInviteCode && suppliedInviteCode && inviteCodeHash(initialAdminInviteCode) === inviteCodeHash(suppliedInviteCode));
+    let invitationGroup = null;
+    if (invitationRequired && !existingInvited && !bootstrapAdmin) {
+      if (!suppliedInviteCode) return apiError(res, 403, 'INVITE_REQUIRED', '首次登录需要有效邀请码');
+      invitationGroup = await repository.findInvitationByHash(inviteCodeHash(suppliedInviteCode));
+      if (!invitationGroup && bootstrapInvite) {
+        const initialGroup = { id: crypto.randomUUID(), label: '初始管理员邀请', codeHash: inviteCodeHash(suppliedInviteCode), codeHint: suppliedInviteCode.slice(-4) };
+        try {
+          await repository.createInvitationGroup(initialGroup.id, initialGroup.label, initialGroup.codeHash, initialGroup.codeHint, true, null);
+        } catch (error) {
+          if (!error || (error.code !== 'SQLITE_CONSTRAINT_UNIQUE' && error.code !== 'ER_DUP_ENTRY')) throw error;
+        }
+        invitationGroup = await repository.findInvitationByHash(initialGroup.codeHash);
+      }
+      if (!invitationGroup) return apiError(res, 403, 'INVITE_INVALID', '邀请码无效');
+      if (!invitationGroup.enabled || invitationGroup.revoked_at) return apiError(res, 403, 'INVITE_DISABLED', '该邀请码组已停用');
+      if (invitationGroup.expires_at && Date.parse(invitationGroup.expires_at) <= Date.now()) return apiError(res, 403, 'INVITE_EXPIRED', '该邀请码已过期');
+    }
     const user = await repository.findOrCreateUser(accountId, crypto.randomUUID());
     if (user.is_banned) return apiError(res, 403, 'ACCOUNT_BANNED', '该账号已被管理员封禁');
+    if (invitationRequired && !existingInvited && invitationGroup) {
+      await repository.joinInvitation(user.id, invitationGroup.id);
+      if (bootstrapInvite) {
+        await repository.ensureInitialPrimaryAdmin(user.id);
+      }
+    }
+    if (bootstrapAdmin) await repository.ensureInitialPrimaryAdmin(user.id);
     const token = crypto.randomBytes(32).toString('base64url');
     await repository.createSession(tokenHash(token), user.id);
     res.status(201).json({ token, expiresInSeconds: 604800, mode: 'wechat' });
   }));
   api.post('/auth/test-identity', asyncHandler(async (req, res) => {
-    if (!testIdentityLoginEnabled) return apiError(res, 404, 'NOT_FOUND', '未找到资源');
+    if (!testIdentityLoginEnabled || invitationRequired) return apiError(res, 404, 'NOT_FOUND', '未找到资源');
     const parsed = testIdentitySchema.safeParse(req.body);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '请填写姓名和 12 位学号');
     const { name, studentNumber } = parsed.data;
@@ -240,7 +305,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     await repository.createSession(tokenHash(token), user.id);
     res.status(201).json({ token, expiresInSeconds: 604800, mode: 'development-test-only' });
   }));
-  api.get('/profile', asyncHandler(requireUser), asyncHandler(async (req, res) => {
+  api.get('/profile', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(async (req, res) => {
     if (initialAdminAccountId && req.user.account_id === initialAdminAccountId) await repository.ensureInitialPrimaryAdmin(req.user.id);
     res.json({
       userId: req.user.id,
@@ -252,7 +317,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
       isPrimaryAdmin: await repository.isPrimaryAdmin(req.user.id),
     });
   }));
-  api.post('/profile/binding', asyncHandler(requireUser), asyncHandler(async (req, res) => {
+  api.post('/profile/binding', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(async (req, res) => {
     const parsed = bindingSchema.safeParse(req.body);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '姓名和学号均为首次绑定必填项');
     if (bindingStatus(req.user) !== 'unbound') return apiError(res, 409, 'BINDING_ALREADY_EXISTS', '姓名和学号已绑定，身份资料修改入口待接入');
@@ -269,7 +334,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
       isPrimaryAdmin: await repository.isPrimaryAdmin(req.user.id),
     });
   }));
-  api.patch('/profile', asyncHandler(requireUser), asyncHandler(async (req, res) => {
+  api.patch('/profile', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(async (req, res) => {
     const parsed = profileSchema.safeParse(req.body);
     if (!parsed.success || Object.keys(req.body).length === 0) return apiError(res, 400, 'VALIDATION_FAILED', '仅可修改昵称和头像地址');
     const { nickname, avatarUrl } = parsed.data;
@@ -277,19 +342,81 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     const user = await repository.profile(req.user.id);
     res.json({ nickname: user.nickname, avatarUrl: user.avatar_url });
   }));
-  api.post('/profile/change-requests', asyncHandler(requireUser), asyncHandler(async (req, res) => {
+  api.post('/profile/change-requests', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(async (req, res) => {
     const parsed = changeRequestSchema.safeParse(req.body);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '姓名或学号修改申请格式无效');
     await repository.createChangeRequest(crypto.randomUUID(), req.user.id, parsed.data.name, parsed.data.studentNumber);
     res.status(201).json({ status: 'pending' });
   }));
-  api.get('/admin/users', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+  api.get('/invitations/status', asyncHandler(requireUser), asyncHandler(async (req, res) => {
+    const membership = await repository.invitationStatus(req.user.id);
+    res.json({
+      isInvited: Boolean(membership),
+      group: membership ? { id: membership.id, label: membership.label, joinedAt: membership.joined_at } : null,
+    });
+  }));
+  api.get('/admin/invitation-groups', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requireAdmin), asyncHandler(async (_req, res) => {
+    const groups = await repository.listInvitationGroups();
+    res.json({ items: groups.map(invitationGroupView) });
+  }));
+  api.post('/admin/invitation-groups', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+    const parsed = invitationGroupSchema.safeParse(req.body);
+    if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '邀请码组名称、邀请码或有效期格式无效');
+    const inviteCode = normalizeInviteCode(parsed.data.code || crypto.randomBytes(12).toString('base64url'));
+    const group = { id: crypto.randomUUID(), label: parsed.data.label, codeHash: inviteCodeHash(inviteCode), codeHint: inviteCode.slice(-4), enabled: parsed.data.enabled !== false, expiresAt: parsed.data.expiresAt || null };
+    try {
+      await repository.createInvitationGroup(group.id, group.label, group.codeHash, group.codeHint, group.enabled, group.expiresAt);
+    } catch (error) {
+      if (error && (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY')) return apiError(res, 409, 'INVITE_CODE_IN_USE', '邀请码已存在，请换一个');
+      throw error;
+    }
+    res.status(201).json({ group: invitationGroupView({ ...group, created_at: new Date().toISOString(), revoked_at: null, member_count: 0 }), inviteCode, sharePath: `/pages/invite/index?inviteCode=${encodeURIComponent(inviteCode)}` });
+  }));
+  api.patch('/admin/invitation-groups/:groupId', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+    const parsed = invitationGroupPatchSchema.safeParse(req.body);
+    const groupId = String(req.params.groupId || '');
+    if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(groupId)) return apiError(res, 400, 'VALIDATION_FAILED', '邀请码组修改格式无效');
+    const fields = { ...parsed.data };
+    let inviteCode = '';
+    if (fields.code !== undefined) {
+      inviteCode = normalizeInviteCode(fields.code);
+      fields.codeHash = inviteCodeHash(inviteCode);
+      fields.codeHint = inviteCode.slice(-4);
+      delete fields.code;
+    }
+    let group;
+    try { group = await repository.updateInvitationGroup(groupId, fields); } catch (error) {
+      if (error && (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY')) return apiError(res, 409, 'INVITE_CODE_IN_USE', '邀请码已存在，请换一个');
+      throw error;
+    }
+    if (!group) return apiError(res, 404, 'INVITE_GROUP_NOT_FOUND', '邀请码组不存在');
+    res.json({ group: invitationGroupView(group), ...(inviteCode ? { inviteCode, sharePath: `/pages/invite/index?inviteCode=${encodeURIComponent(inviteCode)}` } : {}) });
+  }));
+  api.post('/admin/invitation-groups/:groupId/mini-code', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+    const parsed = invitationCodeSchema.safeParse(req.body);
+    const groupId = String(req.params.groupId || '');
+    if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(groupId)) return apiError(res, 400, 'VALIDATION_FAILED', '邀请码格式无效');
+    const inviteCode = normalizeInviteCode(parsed.data.code);
+    const group = await repository.findInvitationByHash(inviteCodeHash(inviteCode));
+    if (!group || group.id !== groupId) return apiError(res, 404, 'INVITE_GROUP_NOT_FOUND', '邀请码组不存在');
+    if (!group.enabled || group.revoked_at) return apiError(res, 409, 'INVITE_DISABLED', '该邀请码组已停用');
+    if (group.expires_at && Date.parse(group.expires_at) <= Date.now()) return apiError(res, 409, 'INVITE_EXPIRED', '该邀请码已过期');
+    let miniCode;
+    try {
+      miniCode = await wechatMiniCode({ scene: `inviteCode=${inviteCode}` });
+    } catch (error) {
+      if (error instanceof WechatMiniCodeError) return apiError(res, error.code === 'WECHAT_LOGIN_UNCONFIGURED' ? 503 : 502, error.code, error.message);
+      throw error;
+    }
+    res.type(miniCode.contentType).send(miniCode.buffer);
+  }));
+  api.get('/admin/users', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
     const parsed = adminUserQuerySchema.safeParse(req.query);
     if (!parsed.success) return apiError(res, 400, 'VALIDATION_FAILED', '请输入姓名或学号搜索用户');
     const items = await repository.listUsersForAdmin(parsed.data.q);
     res.json({ items: items.map((user) => ({ id: user.id, name: user.legal_name, studentNumber: user.student_number, isBanned: Boolean(user.is_banned), isAdmin: Boolean(user.is_admin), isPrimaryAdmin: Boolean(user.is_primary_admin), createdAt: user.created_at })) });
   }));
-  api.patch('/admin/users/:userId/identity', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+  api.patch('/admin/users/:userId/identity', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
     const parsed = adminIdentitySchema.safeParse(req.body);
     const userId = String(req.params.userId || '');
     if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '姓名和 12 位学号格式无效');
@@ -300,7 +427,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (result.conflict) return apiError(res, 409, 'STUDENT_NUMBER_IN_USE', '该学号已被其他用户使用');
     res.json({ user: { id: userId, name: parsed.data.name, studentNumber: parsed.data.studentNumber } });
   }));
-  api.patch('/admin/users/:userId/account-status', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+  api.patch('/admin/users/:userId/account-status', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
     const parsed = adminAccountStatusSchema.safeParse(req.body);
     const userId = String(req.params.userId || '');
     if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '账号状态格式无效');
@@ -313,7 +440,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (result.protectedAdmin) return apiError(res, 403, 'ADMIN_TARGET_PROTECTED', '普通管理员不能封禁其他管理员');
     res.json({ user: { id: userId, isBanned: parsed.data.banned } });
   }));
-  api.delete('/admin/users/:userId', asyncHandler(requireUser), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
+  api.delete('/admin/users/:userId', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requireAdmin), asyncHandler(async (req, res) => {
     const userId = String(req.params.userId || '');
     if (!/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '账号标识格式无效');
     const result = await repository.adminDeleteUser(req.user.id, userId, crypto.randomUUID());
@@ -324,7 +451,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (result.primaryAdmin) return apiError(res, 409, 'PRIMARY_ADMIN_DELETE_FORBIDDEN', '主管理员不能被删除，请先移交主管理员权限');
     res.status(204).end();
   }));
-  api.patch('/admin/users/:userId/admin-role', asyncHandler(requireUser), asyncHandler(requirePrimaryAdmin), asyncHandler(async (req, res) => {
+  api.patch('/admin/users/:userId/admin-role', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requirePrimaryAdmin), asyncHandler(async (req, res) => {
     const parsed = adminRoleSchema.safeParse(req.body);
     const userId = String(req.params.userId || '');
     if (!parsed.success || !/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '管理员权限格式无效');
@@ -337,7 +464,7 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (result.primaryAdmin) return apiError(res, 409, 'PRIMARY_ADMIN_ROLE_PROTECTED', '主管理员必须先移交权限');
     res.json({ user: { id: userId, isAdmin: parsed.data.isAdmin } });
   }));
-  api.patch('/admin/users/:userId/primary-admin', asyncHandler(requireUser), asyncHandler(requirePrimaryAdmin), asyncHandler(async (req, res) => {
+  api.patch('/admin/users/:userId/primary-admin', asyncHandler(requireUser), asyncHandler(requireInvited), asyncHandler(requirePrimaryAdmin), asyncHandler(async (req, res) => {
     const userId = String(req.params.userId || '');
     if (!/^[0-9a-f-]{36}$/i.test(userId)) return apiError(res, 400, 'VALIDATION_FAILED', '主管理员目标无效');
     if (userId === req.user.id) return apiError(res, 400, 'PRIMARY_ADMIN_ALREADY_ASSIGNED', '当前账号已经是主管理员');
@@ -356,10 +483,10 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
   ]) {
     const target = entityByKey(`${config.targetType}s`, config.param, config.label);
     api.get(`/${config.root}/:${config.param}/feedback`, asyncHandler(optionalUser), target, asyncHandler(feedback(config.targetType)));
-    api.post(`/${config.root}/:${config.param}/likes`, asyncHandler(requireUser), target, asyncHandler(like(config.targetType)));
-    api.delete(`/${config.root}/:${config.param}/likes`, asyncHandler(requireUser), target, asyncHandler(unlike(config.targetType)));
-    api.post(`/${config.root}/:${config.param}/comments`, asyncHandler(requireUser), target, asyncHandler(comment(config.targetType)));
-    api.delete(`/${config.root}/:${config.param}/comments/:commentId`, asyncHandler(requireUser), target, asyncHandler(deleteComment(config.targetType)));
+    api.post(`/${config.root}/:${config.param}/likes`, asyncHandler(requireUser), asyncHandler(requireInvited), target, asyncHandler(like(config.targetType)));
+    api.delete(`/${config.root}/:${config.param}/likes`, asyncHandler(requireUser), asyncHandler(requireInvited), target, asyncHandler(unlike(config.targetType)));
+    api.post(`/${config.root}/:${config.param}/comments`, asyncHandler(requireUser), asyncHandler(requireInvited), target, asyncHandler(comment(config.targetType)));
+    api.delete(`/${config.root}/:${config.param}/comments/:commentId`, asyncHandler(requireUser), asyncHandler(requireInvited), target, asyncHandler(deleteComment(config.targetType)));
   }
 
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));

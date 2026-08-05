@@ -12,6 +12,10 @@ function shouldShowSessionExpired(error) {
   return !(error && (error.sessionSuperseded || error.code === "SESSION_SUPERSEDED"))
 }
 
+function openInvite(target) {
+  wx.navigateTo({ url: "/pages/invite/index?target=" + encodeURIComponent(target || "/pages/profile/index") })
+}
+
 Page({
   data: {
     course: null,
@@ -209,7 +213,7 @@ Page({
       return
     }
     if (!this.data.isLoggedIn) {
-      wx.showToast({ title: "请先进入测试身份", icon: "none" })
+      openInvite("/pages/course-detail/index?key=" + encodeURIComponent(backendCourseKey(course)))
       return
     }
     if (this.data.isLiking) return
@@ -249,7 +253,7 @@ Page({
     })[0]
     if (!teacher) return
     if (!api.hasSession()) {
-      wx.showToast({ title: "请先进入测试身份", icon: "none" })
+      openInvite("/pages/course-detail/index?key=" + encodeURIComponent(backendCourseKey(this.data.course)))
       return
     }
     if (teacher.isLiking) {
@@ -308,7 +312,7 @@ Page({
       return
     }
     if (!this.data.isLoggedIn) {
-      wx.showToast({ title: "请先进入测试身份", icon: "none" })
+      openInvite("/pages/course-detail/index?key=" + encodeURIComponent(backendCourseKey(course)))
       return
     }
     if (!this.data.commentText.trim()) {

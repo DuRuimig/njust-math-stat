@@ -49,9 +49,19 @@ docker run --rm -p 8080:8080 njust-math-stat-backend
 
 教师目录页只展示当前课程库已录入的教师姓名、系别与累计点赞。点赞摘要通过 `GET /api/v1/teachers/feedback-summary` 批量读取，点赞通过 `POST /api/v1/teachers/:teacherId/likes` 写入；`teacherId` 使用课程库内目录链接（无链接时使用“姓名|系别”）的稳定 SHA-256 标识，前端与 seed 使用同一来源和口径。
 
-## 当前体验版：姓名学号测试身份
+## 上架版：微信登录与受邀使用
 
-当前云端体验版默认使用姓名和 12 位数字学号进入测试身份：`POST /api/v1/auth/test-identity` 只在服务端环境变量 `ENABLE_TEST_IDENTITY_LOGIN=1` 时开放。同一学号会回到同一测试账号；姓名不一致会被拒绝，不会覆盖原资料。这个入口仅用于内部体验，知道姓名和学号的人可能进入同一账号，不能当作学校统一身份认证或正式权限依据。
+上架版的小程序默认使用真实微信登录。用户可匿名浏览课程与教师目录；首次参与点赞或评论时，需从邀请链接或小程序码进入 `pages/invite/index` 并完成微信登录。邀请码可重复使用，每位用户只会绑定一次受邀记录；停用邀请码组只阻止新成员加入，既有成员不受影响。
+
+生产环境除 `WX_MINIPROGRAM_APP_ID`、`WX_MINIPROGRAM_APP_SECRET` 外，还需在云端密钥配置一个随机的 `INITIAL_ADMIN_INVITE_CODE`（6 至 20 位，允许英文、数字、`_`、`-`）。空库首次使用该码的微信账号会成为主管理员，并自动创建“初始管理员邀请”组；此后管理员可通过邀请组 API 创建、轮换和停用其他邀请码。初始邀请码应在首个主管理员创建完成后从云端环境变量删除。
+
+创建或轮换邀请码时，管理员 API 的响应包含 `sharePath`，可用于小程序内的邀请链接。使用 `POST /api/v1/admin/invitation-groups/:groupId/mini-code` 并在请求体中提供同一个邀请码，会返回微信官方小程序码 PNG。邀请码数据库只保存哈希，服务不会在后续查询中回显明文；创建后应由管理员妥善保存邀请码及其链接或二维码。
+
+小程序码使用微信 `wxacode.getUnlimited`，其 `scene` 最多支持 32 个可见字符。因此邀请码限制为 6 至 20 位，并且生成小程序码前 `pages/invite/index` 必须已随当前版本发布。
+
+## 历史体验版：姓名学号测试身份
+
+旧云端体验版曾使用姓名和 12 位数字学号进入测试身份：`POST /api/v1/auth/test-identity` 只在服务端环境变量 `ENABLE_TEST_IDENTITY_LOGIN=1` 且未开启邀请制时开放。同一学号会回到同一测试账号；姓名不一致会被拒绝，不会覆盖原资料。这个入口只用于内部体验，不能当作学校统一身份认证或正式权限依据。
 
 测试身份成功后使用现有 7 天 Bearer 会话，可验证个人资料、点赞和匿名评论。测试身份开关与 MySQL 配置彼此独立：当前体验版已使用 MySQL 持久化互动数据；`MYSQL_EXECUTE=1` 仅用于受控迁移命令，不能作为常驻服务环境变量；微信 AppSecret 也不应写入仓库或镜像。
 
@@ -80,6 +90,6 @@ docker run --rm -p 8080:8080 njust-math-stat-backend
 - 服务名：`express-4id4`
 - 默认模式：`cloud`（体验版；本地开发需手动切换为 `local`）
 
-云模式通过 `wx.cloud.callContainer` 的 `config.env` 与 `service` 参数调用服务，绝不会使用 `127.0.0.1`。当前默认 `authMode: "test-identity"`，个人资料、点赞与匿名评论使用测试身份的云托管 Bearer 会话；真实微信登录代码保留但当前不显示入口。云托管的调用路由信息不被当作用户身份凭据；后续微信版才由服务端 `jscode2session` 校验结果建立真实身份。
+云模式通过 `wx.cloud.callContainer` 的 `config.env` 与 `service` 参数调用服务，绝不会使用 `127.0.0.1`。当前源码默认 `authMode: "wechat"`：服务端以 `jscode2session` 校验微信登录 `code`，首次互动需验证邀请码；云托管路由信息不被当作用户身份凭据。
 
-当前体验版已经通过云托管调用生产服务并使用 MySQL 持久化互动数据。真实微信登录仍保持关闭，切换认证模式前的检查与限制见 [`doc/cloud-container-integration.md`](doc/cloud-container-integration.md)。
+本地代码与自动化测试已覆盖该邀请流程；真实云托管、微信登录、小程序码、MySQL 和体验版上传仍需按 [`doc/cloud-container-integration.md`](doc/cloud-container-integration.md) 在目标环境逐项核验。

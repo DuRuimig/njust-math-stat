@@ -20,7 +20,7 @@ function shouldShowSessionExpired(error) {
 Page({
   data: {
     loginStatus: "未登录",
-    serviceStatus: "请填写姓名和 12 位学号进入测试身份",
+    serviceStatus: "请使用微信登录后访问身份与互动功能",
     nickname: "",
     avatarUrl: "",
     bindingStatus: "real-login-pending",
