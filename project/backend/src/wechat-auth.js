@@ -54,7 +54,12 @@ function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch, log
       url.searchParams.set('grant_type', 'authorization_code');
       response = await fetchWithTimeout(fetchImpl, url, { method: 'GET' }, timeoutMs);
     } catch (error) {
-      logger.warn({ stage: 'jscode2session_request', errorName: error && error.name }, '[wechat-auth-upstream]');
+      logger.warn({
+        stage: 'jscode2session_request',
+        errorName: error && error.name,
+        errorCode: error && error.code,
+        errorMessage: error && error.message,
+      }, '[wechat-auth-upstream]');
       throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务暂不可用');
     }
 
