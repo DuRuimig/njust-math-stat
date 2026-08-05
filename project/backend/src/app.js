@@ -101,7 +101,7 @@ function decodeTargetKey(value) {
   }
 }
 
-function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }), wechatAuth = createWechatAuth(), wechatMiniCode = createWechatMiniCode(), testIdentityLoginEnabled = process.env.ENABLE_TEST_IDENTITY_LOGIN === '1', initialAdminAccountId = process.env.INITIAL_ADMIN_ACCOUNT_ID || '', initialAdminInviteCode = process.env.INITIAL_ADMIN_INVITE_CODE || '', invitationRequired = env === 'production' && process.env.NODE_ENV !== 'test' } = {}) {
+function createApp({ db, env = process.env.NODE_ENV || 'development', logger = pino({ enabled: process.env.NODE_ENV !== 'test' }), wechatAuth = createWechatAuth({ logger }), wechatMiniCode = createWechatMiniCode({ logger }), testIdentityLoginEnabled = process.env.ENABLE_TEST_IDENTITY_LOGIN === '1', initialAdminAccountId = process.env.INITIAL_ADMIN_ACCOUNT_ID || '', initialAdminInviteCode = process.env.INITIAL_ADMIN_INVITE_CODE || '', invitationRequired = env === 'production' && process.env.NODE_ENV !== 'test' } = {}) {
   if (!db) throw new Error('createApp requires an initialized database connection');
   const repository = createRepository(db);
   const app = express();

@@ -17,7 +17,7 @@ class WechatMiniCodeError extends Error {
   }
 }
 
-function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
+function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch, logger = { warn() {} } } = {}) {
   const appId = env.WX_MINIPROGRAM_APP_ID;
   const appSecret = env.WX_MINIPROGRAM_APP_SECRET;
 
@@ -33,22 +33,30 @@ function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch } = 
       url.searchParams.set('js_code', code);
       url.searchParams.set('grant_type', 'authorization_code');
       response = await fetchImpl(url, { method: 'GET', signal: AbortSignal.timeout(5000) });
-    } catch (_error) {
+    } catch (error) {
+      logger.warn({ stage: 'jscode2session_request', errorName: error && error.name }, '[wechat-auth-upstream]');
       throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务暂不可用');
     }
 
     let payload;
     try {
       payload = await response.json();
-    } catch (_error) {
+    } catch (error) {
+      logger.warn({ stage: 'jscode2session_response', errorName: error && error.name, httpStatus: response && response.status }, '[wechat-auth-upstream]');
       throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务返回异常');
     }
-    if (!response.ok) throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务暂不可用');
+    if (!response.ok) {
+      logger.warn({ stage: 'jscode2session_http', httpStatus: response.status }, '[wechat-auth-upstream]');
+      throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务暂不可用');
+    }
     // Only WeChat's explicit invalid or already-used js_code responses are retryable client failures.
     if (payload && WECHAT_INVALID_CODE_ERRORS.has(payload.errcode)) {
       throw new WechatAuthError('WECHAT_CODE_INVALID', '微信登录凭据无效或已过期，请重试');
     }
-    if (payload && payload.errcode) throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务暂不可用');
+    if (payload && payload.errcode) {
+      logger.warn({ stage: 'jscode2session_payload', wechatErrorCode: payload.errcode }, '[wechat-auth-upstream]');
+      throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验服务暂不可用');
+    }
     if (!payload || typeof payload.openid !== 'string' || !/^[A-Za-z0-9_-]{6,128}$/.test(payload.openid)) {
       throw new WechatAuthError('WECHAT_AUTH_UNAVAILABLE', '微信身份校验结果无效');
     }
@@ -56,7 +64,7 @@ function createWechatAuth({ env = process.env, fetchImpl = globalThis.fetch } = 
   };
 }
 
-function createWechatMiniCode({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
+function createWechatMiniCode({ env = process.env, fetchImpl = globalThis.fetch, logger = { warn() {} } } = {}) {
   const appId = env.WX_MINIPROGRAM_APP_ID;
   const appSecret = env.WX_MINIPROGRAM_APP_SECRET;
   let cachedToken = null;
