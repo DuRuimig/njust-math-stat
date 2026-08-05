@@ -298,6 +298,34 @@ describe('v1 API 契约', () => {
     invitationDb.close();
   });
 
+  it('初始邀请码在用户已加入邀请组后仍能完成首次主管理员赋权', async () => {
+    const bootstrapCode = 'NJUST-BOOT-2026';
+    const invitationDatabasePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'njust-bootstrap-retry-')), 'test.sqlite');
+    const invitationDb = sqliteDatabase(invitationDatabasePath);
+    for (const migration of ['001_initial.sql', '002_teacher_feedback.sql', '003_course_comment_limit.sql', '004_admin_preparation.sql', '005_account_moderation.sql', '006_primary_admin.sql', '007_invitation_access.sql']) {
+      invitationDb.exec(fs.readFileSync(path.resolve(__dirname, `../../../database/migrations/${migration}`), 'utf8'));
+    }
+    const userId = crypto.randomUUID();
+    const groupId = crypto.randomUUID();
+    const accountId = `wechat:${crypto.createHash('sha256').update('invite-bootstrap-retry-code').digest('hex')}`;
+    const codeHash = crypto.createHash('sha256').update(bootstrapCode).digest('hex');
+    invitationDb.prepare('INSERT INTO users (id, account_id, nickname) VALUES (?, ?, ?)').run(userId, accountId, '新同学');
+    invitationDb.prepare('INSERT INTO invitation_groups (id, label, code_hash, code_hint, enabled) VALUES (?, ?, ?, ?, 1)').run(groupId, '初始管理员邀请', codeHash, bootstrapCode.slice(-4));
+    invitationDb.prepare('INSERT INTO invitation_memberships (user_id, invitation_group_id) VALUES (?, ?)').run(userId, groupId);
+    const invitationApp = createApp({
+      db: invitationDb,
+      env: 'production',
+      invitationRequired: true,
+      initialAdminInviteCode: bootstrapCode,
+      wechatAuth: async () => ({ openid: 'invite-bootstrap-retry-code' }),
+    });
+
+    const login = await request(invitationApp).post(`${v1}/auth/wechat`).send({ code: 'bootstrap-retry-code', inviteCode: bootstrapCode });
+    expect(login.status).toBe(201);
+    expect((await request(invitationApp).get(`${v1}/profile`).set(auth(login.body.token))).body).toMatchObject({ isAdmin: true, isPrimaryAdmin: true });
+    invitationDb.close();
+  });
+
   it('同一微信身份的并发首次登录不会返回 500，且只创建一个用户记录', async () => {
     const mockWechatOpenId = crypto.randomBytes(24).toString('base64url');
     const expectedAccountId = `wechat:${crypto.createHash('sha256').update(mockWechatOpenId).digest('hex')}`;

@@ -266,10 +266,10 @@ function createApp({ db, env = process.env.NODE_ENV || 'development', logger = p
     if (user.is_banned) return apiError(res, 403, 'ACCOUNT_BANNED', '该账号已被管理员封禁');
     if (invitationRequired && !existingInvited && invitationGroup) {
       await repository.joinInvitation(user.id, invitationGroup.id);
-      if (bootstrapInvite) {
-        await repository.ensureInitialPrimaryAdmin(user.id);
-      }
     }
+    // Keep bootstrap assignment idempotent when an earlier request joined the user
+    // before the database transaction completed successfully.
+    if (bootstrapInvite) await repository.ensureInitialPrimaryAdmin(user.id);
     if (bootstrapAdmin) await repository.ensureInitialPrimaryAdmin(user.id);
     const token = crypto.randomBytes(32).toString('base64url');
     await repository.createSession(tokenHash(token), user.id);
