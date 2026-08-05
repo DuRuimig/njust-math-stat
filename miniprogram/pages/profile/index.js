@@ -247,6 +247,11 @@ Page({
         if (shouldShowSessionExpired(error)) wx.showToast({ title: "登录已失效，请重新登录", icon: "none" })
         return
       }
+      if (error && error.code === "INVITE_REQUIRED") {
+        page.setData({ isCreatingSession: false, loginStatus: "需要邀请码", serviceStatus: serviceMessage(error) })
+        wx.navigateTo({ url: "/pages/invite/index?target=" + encodeURIComponent("/pages/profile/index") })
+        return
+      }
       page.setData({ isCreatingSession: false, loginStatus: "登录未完成", serviceStatus: serviceMessage(error) })
       wx.showToast({ title: serviceMessage(error), icon: "none" })
     })

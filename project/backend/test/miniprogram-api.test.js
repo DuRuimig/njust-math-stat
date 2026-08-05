@@ -698,6 +698,24 @@ describe('个人中心会话状态', () => {
     expect(runtime.toasts.some((toast) => toast.title === '微信登录成功' || toast.icon === 'success')).toBe(false);
   });
 
+  it('首次登录需要邀请码时跳转到邀请码页面', async () => {
+    const runtime = installCloudRuntime((options) => {
+      options.success({ statusCode: 403, data: { error: { code: 'INVITE_REQUIRED', message: '首次登录需要有效邀请码' } } });
+    }, { initialSession: null, loginCode: 'invite-required-code' });
+    global.wx.navigateTo = vi.fn();
+    loadApi();
+    const page = createPage(loadProfilePage());
+
+    page.onShow();
+    page.loginWithWechat();
+    await flushPromises();
+    await flushPromises();
+
+    expect(page.data).toMatchObject({ isCreatingSession: false, loginStatus: '需要邀请码', serviceStatus: '首次登录需要有效邀请码' });
+    expect(global.wx.navigateTo).toHaveBeenCalledWith({ url: '/pages/invite/index?target=%2Fpages%2Fprofile%2Findex' });
+    expect(runtime.toasts.some((toast) => toast.icon === 'success')).toBe(false);
+  });
+
   it('会话失效后微信登录迟到成功不重新持久化会话', async () => {
     const pending = [];
     const runtime = installCloudRuntime((options) => {
