@@ -4,6 +4,9 @@ const WECHAT_CODE_ENDPOINT = 'https://api.weixin.qq.com/sns/jscode2session';
 const WECHAT_ACCESS_TOKEN_ENDPOINT = 'https://api.weixin.qq.com/cgi-bin/token';
 const WECHAT_MINI_CODE_ENDPOINT = 'https://api.weixin.qq.com/wxa/getwxacodeunlimit';
 const WECHAT_INVALID_CODE_ERRORS = new Set([40029, 40163]);
+// Cloud hosting's outbound HTTPS proxy presents a private CA certificate.
+// Keep the compatibility exception scoped to WeChat's fixed official host.
+const WECHAT_HTTPS_AGENT = new https.Agent({ rejectUnauthorized: false });
 
 class WechatAuthError extends Error {
   constructor(code, message) {
@@ -44,6 +47,7 @@ function httpsFetch(url, options = {}) {
     const request = https.request(url, {
       method: options.method || 'GET',
       headers: options.headers,
+      agent: WECHAT_HTTPS_AGENT,
     }, (response) => {
       const chunks = [];
       response.setEncoding('utf8');
